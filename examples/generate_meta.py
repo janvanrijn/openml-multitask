@@ -1,4 +1,5 @@
 import argparse
+import arff
 import copy
 import math
 import numpy as np
@@ -18,7 +19,8 @@ def parse_args():
     parser.add_argument('--max', type=float, default=2**3, help='max of range')
     parser.add_argument('--log_base', type=float, default=2, help='base of log scale')
     parser.add_argument('--steps', type=int, default=19, help='number of steps to generate the dataset with')
-    parser.add_argument('--tasks', type=int, nargs='+', default=[3, 6, 11, 12], help='defines the tasks')
+    parser.add_argument('--tasks', type=int, nargs='+', default=[3, 11, 12, 14, 15, ], help='defines the tasks')
+    parser.add_argument('--output_file', type=str, default='multi_task.svm')
 
     return parser.parse_args()
 
@@ -51,6 +53,9 @@ if __name__ == '__main__':
     flow_id = openml.flows.flow_exists(flow.name, flow.external_version)
 
     all_setups = openml.setups.list_setups(flow=flow_id)
+    all_evaluations = openml.evaluations.list_evaluations('predictive_accuracy', flow=[flow_id], task=args.tasks)
+
+    results = dict()
 
     for task_id in args.tasks:
         task = openml.tasks.get_task(task_id)
@@ -62,6 +67,7 @@ if __name__ == '__main__':
         indices = task.get_dataset().get_features_by_type('nominal', [task.target_name])
         pipeline.set_params(hotencoding__categorical_features=indices, imputation__categorical_features=indices)
 
+        task_evaluations = openmlcontrib.misc.filter_listing(all_evaluations, 'task_id', [task_id], dict_representation=False)
         task_setups = copy.deepcopy(all_setups)
         for param, value in pipeline.get_params().items():
             if param in [i[0] for i in pipeline.steps] or param in ['steps']: #TODO: steps
@@ -71,18 +77,49 @@ if __name__ == '__main__':
                 continue
             # print('before', param_name, len(task_setups))
             if isinstance(value, int) or isinstance(value, float):
-                task_setups = openmlcontrib.filter_setup_list(task_setups, param_name, min=value, max=value)
+                task_setups = openmlcontrib.setups.filter_setup_list(task_setups, param_name, min=value, max=value)
             else:
-                task_setups = openmlcontrib.filter_setup_list(task_setups, param_name, allowed_values=[value])
+                task_setups = openmlcontrib.setups.filter_setup_list(task_setups, param_name, allowed_values=[value])
             # print('after', param_name, len(task_setups))
-
 
         for value in required_values:
             params_dict = {'classifier__' + args.parameter: value}
             pipeline.set_params(**params_dict)
-            current = openmlcontrib.filter_setup_list(task_setups, args.parameter, value, value)
-            if len(current) == 0:
-                print('Couldn\'t find value %f' %value)
-                run = openml.runs.run_model_on_task(task, pipeline)
-                run.publish()
-                print(run.run_id)
+            current_setups = openmlcontrib.setups.filter_setup_list(task_setups, args.parameter, value, value)
+            current_evaluations = openmlcontrib.misc.filter_listing(task_evaluations, 'setup_id', list(current_setups.keys()), dict_representation=False)
+            #
+            # if len(current_evaluations) == 0:
+            #     print('Couldn\'t find value %f: %d setups %d runs' % (value, len(current_setups), len(current_evaluations)))
+            #     run = openml.runs.run_model_on_task(task, pipeline)
+            #     run.publish()
+            #     print(run.run_id)
+
+            if len(current_evaluations) > 0:
+                arb_run_id = next(iter(current_evaluations))
+                if value not in results:
+                    results[value] = dict()
+                results[value][task_id] = current_evaluations[arb_run_id].value
+
+    # TO ARFF
+    param_name = args.parameter
+    if args.log_base is not None:
+        param_name += '_log'
+    attributes = list((param_name, 'NUMERIC'))
+    for task_id in args.tasks:
+        attributes.append(('score_at_task_' + str(task_id), 'NUMERIC'))
+
+    data = list()
+    for param_val, task_score in results.items():
+        param_val_scaled = param_val
+        if args.log_base is not None:
+            param_val_scaled = math.log(param_val, args.log_base)
+        current = [param_val_scaled]
+        for task_id in args.tasks:
+            current.append(results[param_val][task_id])
+        data.append(current)
+
+    relation = 'multitask-svm'
+    description = 'Generated using openml-multitask repository'
+    dataset = {'relation': relation, 'attributes': attributes, 'data': data, 'description' : description}
+    with open(args.filename, 'w') as fp:
+        fp.write(arff.dumps(dataset))
