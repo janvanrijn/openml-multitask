@@ -19,8 +19,8 @@ def parse_args():
     parser.add_argument('--max', type=float, default=2**3, help='max of range')
     parser.add_argument('--log_base', type=float, default=2, help='base of log scale')
     parser.add_argument('--steps', type=int, default=19, help='number of steps to generate the dataset with')
-    parser.add_argument('--tasks', type=int, nargs='+', default=[3, 11, 12, 14, 15, ], help='defines the tasks')
-    parser.add_argument('--output_file', type=str, default='multi_task.svm')
+    parser.add_argument('--tasks', type=int, nargs='+', default=[3, 11, 12, 14, 15, 16, 18, 22, 23, 28], help='defines the tasks')
+    parser.add_argument('--output_file', type=str, default='multitask-svm.arff')
 
     return parser.parse_args()
 
@@ -87,12 +87,6 @@ if __name__ == '__main__':
             pipeline.set_params(**params_dict)
             current_setups = openmlcontrib.setups.filter_setup_list(task_setups, args.parameter, value, value)
             current_evaluations = openmlcontrib.misc.filter_listing(task_evaluations, 'setup_id', list(current_setups.keys()), dict_representation=False)
-            #
-            # if len(current_evaluations) == 0:
-            #     print('Couldn\'t find value %f: %d setups %d runs' % (value, len(current_setups), len(current_evaluations)))
-            #     run = openml.runs.run_model_on_task(task, pipeline)
-            #     run.publish()
-            #     print(run.run_id)
 
             if len(current_evaluations) > 0:
                 arb_run_id = next(iter(current_evaluations))
@@ -103,13 +97,15 @@ if __name__ == '__main__':
     # TO ARFF
     param_name = args.parameter
     if args.log_base is not None:
-        param_name += '_log'
-    attributes = list((param_name, 'NUMERIC'))
+        param_name += '-log'
+    attributes = list()
+    attributes.append((param_name, 'NUMERIC'))
     for task_id in args.tasks:
-        attributes.append(('score_at_task_' + str(task_id), 'NUMERIC'))
+        attributes.append(('score-at-task-' + str(task_id), 'NUMERIC'))
 
     data = list()
-    for param_val, task_score in results.items():
+    for param_val in required_values:
+        task_score = results[param_val]
         param_val_scaled = param_val
         if args.log_base is not None:
             param_val_scaled = math.log(param_val, args.log_base)
@@ -120,6 +116,6 @@ if __name__ == '__main__':
 
     relation = 'multitask-svm'
     description = 'Generated using openml-multitask repository'
-    dataset = {'relation': relation, 'attributes': attributes, 'data': data, 'description' : description}
-    with open(args.filename, 'w') as fp:
+    dataset = {'relation': relation, 'attributes': attributes, 'data': data, 'description': description}
+    with open(args.output_file, 'w') as fp:
         fp.write(arff.dumps(dataset))
