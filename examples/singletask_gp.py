@@ -1,6 +1,7 @@
 import argparse
 import arff
 import matplotlib.pyplot as plt
+import multitask
 import numpy as np
 
 
@@ -20,19 +21,15 @@ def plot(x, mu, sigma, target_name, param_name, num_samples=25):
            title='GP on ' + target_name)
 
     ax.set_ylim([0., 1.])
-    fig.savefig(filename=target_name)
-
-
-def rbf_kernel(x_a, x_b, theta0=1, theta1=1):
-    return theta0 * np.exp(-0.5 * theta1 * np.subtract.outer(x_a, x_b) ** 2)
+    fig.savefig(fname=target_name)
 
 
 def get_posterior(x_star, x, y):
     # This fn implements Eq. 2.19 from Rasmussen and Williams
-    K_vv = rbf_kernel(x, x)
-    K_sv = rbf_kernel(x_star, x)
-    K_vs = rbf_kernel(x, x_star)
-    K_ss = rbf_kernel(x_star, x_star)
+    K_vv = multitask.utils.rbf_kernel(x, x)
+    K_sv = multitask.utils.rbf_kernel(x_star, x)
+    K_vs = multitask.utils.rbf_kernel(x, x_star)
+    K_ss = multitask.utils.rbf_kernel(x_star, x_star)
 
     K_inv = np.linalg.inv(K_vv)
 
