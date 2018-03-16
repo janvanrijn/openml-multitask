@@ -54,8 +54,9 @@ def log_likelihood(x, Y, K_f, Theta_x):
     Sigma_inv = np.linalg.inv(Sigma)
 
     for task_l in len(Y):
-        # TODO iterate over tasks and calculate
-        pass
+        for x_val in x:
+            pass
+        
 
 def run(data_filepath, x_column):
     with open(data_filepath, 'r') as fp:

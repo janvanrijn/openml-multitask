@@ -33,11 +33,8 @@ def get_posterior(x_star, x, y):
 
     K_inv = np.linalg.inv(K_vv)
 
-    mu = K_sv.dot(K_inv).dot(y)
-    sigma = K_ss - K_sv.dot(K_inv).dot(K_vs)
-    # TODO question (JvR): now we have Mu and Sigma, we can
-    # instantiate a np.random.multivariate_normal and sample
-    # from this?
+    mu = K_sv.dot(K_inv).dot(y)              # predictive means
+    sigma = K_ss - K_sv.dot(K_inv).dot(K_vs) # covariance matrix (stdevs are on the diagonal)
     return mu, sigma
 
 
