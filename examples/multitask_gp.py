@@ -53,10 +53,16 @@ def log_likelihood(x, Y, K_f, Theta_x):
     Sigma = compute_Sigma(x, Y, K_f, Theta_x)
     Sigma_inv = np.linalg.inv(Sigma)
 
+    sum_log_likelihood = 0.0
     for task_l in len(Y):
-        for x_val in x:
-            pass
-        
+        for x_idx in len(x):
+            mu = do_inference(K_f[task_l], Sigma_inv, x, Y[task_l], x[x_idx])
+            # TODO: should we use Sigma here?
+            current_loglikelyhood = scipy.stat.norm(mu, Sigma[x_idx][x_idx]).logpdf(Y[task_l][x_idx])
+            # TODO: check scalar
+            sum_log_likelihood += current_loglikelyhood
+    return sum_log_likelihood
+
 
 def run(data_filepath, x_column):
     with open(data_filepath, 'r') as fp:
