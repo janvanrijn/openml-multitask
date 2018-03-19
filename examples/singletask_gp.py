@@ -26,10 +26,10 @@ def plot(x, mu, sigma, target_name, param_name, num_samples=25):
 
 def get_posterior(x_star, x, y):
     # This fn implements Eq. 2.19 from Rasmussen and Williams
-    K_vv = multitask.utils.rbf_kernel(x, x)
-    K_sv = multitask.utils.rbf_kernel(x_star, x)
-    K_vs = multitask.utils.rbf_kernel(x, x_star)
-    K_ss = multitask.utils.rbf_kernel(x_star, x_star)
+    K_vv = multitask.utils.rbf_kernel1D(x, x)
+    K_sv = multitask.utils.rbf_kernel1D(x_star, x)
+    K_vs = multitask.utils.rbf_kernel1D(x, x_star)
+    K_ss = multitask.utils.rbf_kernel1D(x_star, x_star)
 
     K_inv = np.linalg.inv(K_vv)
 

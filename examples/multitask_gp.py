@@ -1,47 +1,55 @@
 import argparse
 import arff
+import functools
 import multitask
 import numpy as np
-import scipy
+import scipy.stats
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
+    parser.add_argument('--maxiter', type=int, default=100)
 
     return parser.parse_args()
 
 
-def compute_Sigma(x, Y, K_f, Theta_x):
+def compute_Sigma(x, M, K_f, Theta_x):
     if len(Theta_x) != 2:
         raise ValueError()
 
-    N = Y.shape[0] # num tasks
-    M = len(x) # num data points
+    N = len(x) # num data points
     I = np.eye(N)
     D = np.zeros((M, M))
-    # TODO: the diagonal should be sigma_l^2
+    # TODO: the diagonal of D should be sigma_l^2
     # p2: "sigma_l^2 is the noice variance for the l^th task"
     # (7/7/18) assumption by AM: sigma_l^2 is learned
     # TODO 2: assumption, D can be all zeros, for "noiseless observations"
+    # TODO 3: question what is the range of sigma_L^2
 
-    K_x = multitask.utils.rbf_kernel(x, x, Theta_x[0], Theta_x[1])
+    K_x = multitask.utils.rbf_kernel1D(x, x, Theta_x[0], Theta_x[1])
+    if K_x.shape != (N, N):
+        raise ValueError()
     Sigma = np.kron(K_f, K_x) + np.kron(D, I)
-
     if Sigma.shape != (N*M, N*M):
         raise ValueError()
     return Sigma
 
 
-def do_inference(k_l_f, Sigma_inv, x, y, x_star):
-    # x_star is scalar
-    # y is a vector here
-    # TODO check inputs
-    k_s_x = multitask.utils.rbf_kernel(x_star, x)
-    # TODO check dimensions
+def do_inference(k_l_f, Sigma_inv, x, bold_y, x_star):
+    if not isinstance(x_star, float):
+        raise ValueError('x_star should be scalar, got: %s' %x_star)
+    if not Sigma_inv.shape[0] == Sigma_inv.shape[1]:
+        raise ValueError('Sigma_inv should be squared')
+    if not (Sigma_inv.shape[1],) == bold_y.shape:
+        raise ValueError('Sigma_inv and bold_y dimensions should match')
 
-    f_l_bar = np.kron(k_l_f, k_s_x).T.dot(Sigma_inv).dot(y)
+    k_s_x = multitask.utils.rbf_kernel1D(x_star, x)
+    if k_s_x.shape != (len(x), ):
+        raise ValueError('Wrong dimensionality of k_s_x (check the kernel)')
+
+    f_l_bar = np.kron(k_l_f, k_s_x).T.dot(Sigma_inv).dot(bold_y)
     # TODO: assumption by jvR this returns the predictive mean, i.e., mu
     # TODO: question: How to calculate stdev sigma?
     # TODO: assumption: Or can I just plug covariance matrix Sigma in normal dist obj?
@@ -49,22 +57,44 @@ def do_inference(k_l_f, Sigma_inv, x, y, x_star):
     return f_l_bar
 
 
-def log_likelihood(x, Y, K_f, Theta_x):
-    Sigma = compute_Sigma(x, Y, K_f, Theta_x)
+def neg_log_likelihood(parameters, x, Y):
+    # this function is used by scipy.optimize.minimize(). Therefore, the
+    # parameters to be optimized are wrapped in the single argument
+    # 'parameters', which is an array of floats. Contains
+    # - the Cholesky decomposition of K_f (size: len(Y)^2)
+    # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
+    N = len(x)
+    M = len(Y)
+    bold_y = np.reshape(Y, (Y.shape[0] * Y.shape[1]))
+    expected_size = M ** 2 + 2
+    if len(parameters) != expected_size:
+        raise ValueError('Wrong parameter size array. Expected %d got %d' %(expected_size, len(parameters)))
+    K_f_inv = np.reshape(parameters[0:-2], (M, M))
+    K_f = K_f_inv.dot(K_f_inv)
+    Theta_x = [parameters[-2], parameters[-1]]
+    Sigma = compute_Sigma(x, M, K_f, Theta_x)
+    expected_shape_sigma = (N * M, N * M)
+    if Sigma.shape != expected_shape_sigma:
+        raise ValueError('Wrong shape of Sigma. Expected %s got %s' %(Sigma.shape, expected_shape_sigma))
     Sigma_inv = np.linalg.inv(Sigma)
 
     sum_log_likelihood = 0.0
-    for task_l in len(Y):
-        for x_idx in len(x):
-            mu = do_inference(K_f[task_l], Sigma_inv, x, Y[task_l], x[x_idx])
-            # TODO: should we use Sigma here?
-            current_loglikelyhood = scipy.stat.norm(mu, Sigma[x_idx][x_idx]).logpdf(Y[task_l][x_idx])
+    for task_l in range(M):
+        for x_idx in range(N):
+            mu = do_inference(K_f[:, task_l], Sigma_inv, x, bold_y, x[x_idx])
+            # TODO: assumption: we could use sigma (co-variance matrix) here
+            current_loglikelyhood = scipy.stats.norm(mu, Sigma[x_idx][x_idx]).logpdf(Y[task_l][x_idx])
             # TODO: check scalar
             sum_log_likelihood += current_loglikelyhood
-    return sum_log_likelihood
+    return -1 * sum_log_likelihood
 
 
-def run(data_filepath, x_column):
+def run(data_filepath, x_column, maxiter):
+    def log_iteration(current_params):
+        global optimization_steps
+        optimization_steps += 1
+        print('Evaluated:', optimization_steps, current_params)
+
     with open(data_filepath, 'r') as fp:
         dataset = arff.load(fp)
     x_idx = None
@@ -81,8 +111,22 @@ def run(data_filepath, x_column):
     data = np.array(dataset['data'])
     x = data[:,x_idx]
     Y = np.array([data[:,y_idx] for y_idx in y_indices])
+    optimizee = functools.partial(neg_log_likelihood, x=x, Y=Y)
+    params0 = np.reshape(np.eye(len(Y)), (len(Y)**2,))
+    params0 = np.append(params0, [0.1, 0.1])
+
+    options = dict()
+    if maxiter:
+        options['maxiter'] = maxiter
+
+    result = scipy.optimize.minimize(optimizee, params0,
+                                     method='BFGS',
+                                     callback=log_iteration,
+                                     options=options)
+    print(result)
 
 
 if __name__ == '__main__':
     args = parse_args()
-    run(args.data_file, args.x_column)
+    optimization_steps = 0
+    run(args.data_file, args.x_column, args.maxiter)
