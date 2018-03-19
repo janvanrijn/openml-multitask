@@ -65,13 +65,9 @@ def neg_log_likelihood(parameters, x, Y):
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
     N = len(x)
     M = len(Y)
+    K_f, Theta_x = multitask.utils.unpack_params(parameters, M)
+
     bold_y = np.reshape(Y, (Y.shape[0] * Y.shape[1]))
-    expected_size = M ** 2 + 2
-    if len(parameters) != expected_size:
-        raise ValueError('Wrong parameter size array. Expected %d got %d' %(expected_size, len(parameters)))
-    K_f_inv = np.reshape(parameters[0:-2], (M, M))
-    K_f = K_f_inv.dot(K_f_inv)
-    Theta_x = [parameters[-2], parameters[-1]]
     Sigma = compute_Sigma(x, M, K_f, Theta_x)
     expected_shape_sigma = (N * M, N * M)
     if Sigma.shape != expected_shape_sigma:
@@ -112,18 +108,19 @@ def run(data_filepath, x_column, maxiter):
     x = data[:,x_idx]
     Y = np.array([data[:,y_idx] for y_idx in y_indices])
     optimizee = functools.partial(neg_log_likelihood, x=x, Y=Y)
-    params0 = np.reshape(np.eye(len(Y)), (len(Y)**2,))
-    params0 = np.append(params0, [0.1, 0.1])
+    params0 = multitask.utils.pack_params(np.eye(len(Y)), [0.1, 0.1])
+
+    optimizee(params0)
 
     options = dict()
     if maxiter:
         options['maxiter'] = maxiter
 
-    result = scipy.optimize.minimize(optimizee, params0,
-                                     method='BFGS',
-                                     callback=log_iteration,
-                                     options=options)
-    print(result)
+    # result = scipy.optimize.minimize(optimizee, params0,
+    #                                  method='BFGS',
+    #                                  callback=log_iteration,
+    #                                  options=options)
+    # print(result)
 
 
 if __name__ == '__main__':
