@@ -42,7 +42,7 @@ def get_posterior_single_point(x_star, x, y):
 
     k_vv = multitask.utils.rbf_kernel1D(x, x)
     k_sv = multitask.utils.rbf_kernel1D(x_star, x)
-    k_vs = multitask.utils.rbf_kernel1D(x, x_star)
+    # k_vs = multitask.utils.rbf_kernel1D(x, x_star)
     k_ss = multitask.utils.rbf_kernel1D(x_star, x_star)
 
     k_vv_inv = np.linalg.inv(k_vv)

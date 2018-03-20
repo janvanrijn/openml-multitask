@@ -26,7 +26,7 @@ def compute_Sigma(x, M, K_f, sigma_l_2, Theta_x):
     if len(Theta_x) != 2:
         raise ValueError()
     if sigma_l_2.shape != (M, ):
-        raise ValueError()
+        raise ValueError('Incorrect shape of sigma_l_2. Expected (%d, ) got: %s' %(M, sigma_l_2.shape))
 
     I = np.eye(N)
     D = np.zeros((M, M))
@@ -73,7 +73,7 @@ def neg_log_likelihood(parameters, x, Y):
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
     N = len(x)
     M = len(Y)
-    L, sigma_l_2, Theta_x = multitask.utils.unpack_params(parameters, M)
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=False, include_theta=False) #TODO: include Sigma/Theta again
     K_f = L.dot(L.T)
 
     bold_y = np.reshape(Y, (Y.shape[0] * Y.shape[1]))
@@ -130,7 +130,7 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
     M = len(Y_train)
     optimizee = functools.partial(neg_log_likelihood, x=x_train, Y=Y_train)
     # assumptions: we have to learn the variance of the tasks (sigma_l_2)
-    params0 = multitask.utils.pack_params(np.tril(np.random.rand(M, M)), np.random.rand(M), np.random.rand(2))
+    params0 = multitask.utils.pack_params(np.tril(np.random.rand(M, M)), None, None) # TODO: replace None with sigma_l_2
 
     options = dict()
     if maxiter:
@@ -189,12 +189,14 @@ def run(data_filepath, x_column, optimization_method, maxiter, cache_directory, 
 
     # convert ndarrays to tuples for lru_cache
     result = optimize_decorator(x_train, Y_train, optimization_method, maxiter, cache_directory)
-    parameters = result.x
-    L, sigma_l_2, Theta_x = multitask.utils.unpack_params(parameters, len(Y_train))
+    incumbent = result.x
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, len(Y_train), include_sigma=False, include_theta=False)
     K_f = L.dot(L.T)
 
-    for i in range(len(Y_train)):
-        plot_model(x_train, Y_train, i, K_f, sigma_l_2, Theta_x, plot_offset=3, target_name=plot_directory + 'multitask-%d.png' %i)
+    for idx, y_column in enumerate(y_indices):
+        current_target = dataset['attributes'][y_column][0]
+        print(current_target)
+        plot_model(x_train, Y_train, idx, K_f, sigma_l_2, Theta_x, plot_offset=0, target_name=plot_directory + current_target + '.png')
 
 
 if __name__ == '__main__':

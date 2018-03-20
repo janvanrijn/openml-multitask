@@ -32,4 +32,5 @@ class TestMiscFunctions(unittest.TestCase):
             sigma_prime.append(result[1])
 
         np.testing.assert_array_almost_equal(mu, np.array(mu_prime))
+        # sigma contains covariance matrix. sigma prime contains variances. Diagonal of cov matrix = variances
         np.testing.assert_array_almost_equal(np.diagonal(sigma), np.array(sigma_prime))
