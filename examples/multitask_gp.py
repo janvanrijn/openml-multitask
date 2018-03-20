@@ -10,23 +10,22 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
-    parser.add_argument('--maxiter', type=int, default=100)
+    parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
+    parser.add_argument('--maxiter', type=int, default=1000)
 
     return parser.parse_args()
 
 
-def compute_Sigma(x, M, K_f, Theta_x):
+def compute_Sigma(x, M, K_f, sigma_l_2, Theta_x):
+    N = len(x) # num data points
     if len(Theta_x) != 2:
         raise ValueError()
+    if sigma_l_2.shape != (M, ):
+        raise ValueError()
 
-    N = len(x) # num data points
     I = np.eye(N)
     D = np.zeros((M, M))
-    # TODO: the diagonal of D should be sigma_l^2
-    # p2: "sigma_l^2 is the noice variance for the l^th task"
-    # (7/7/18) assumption by AM: sigma_l^2 is learned
-    # TODO 2: assumption, D can be all zeros, for "noiseless observations"
-    # TODO 3: question what is the range of sigma_L^2
+    D[np.diag_indices(M)] = sigma_l_2
 
     K_x = multitask.utils.rbf_kernel1D(x, x, Theta_x[0], Theta_x[1])
     if K_x.shape != (N, N):
@@ -65,10 +64,11 @@ def neg_log_likelihood(parameters, x, Y):
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
     N = len(x)
     M = len(Y)
-    K_f, Theta_x = multitask.utils.unpack_params(parameters, M)
+    L, sigma_l_2, Theta_x = multitask.utils.unpack_params(parameters, M)
+    K_f = L.dot(L.T)
 
     bold_y = np.reshape(Y, (Y.shape[0] * Y.shape[1]))
-    Sigma = compute_Sigma(x, M, K_f, Theta_x)
+    Sigma = compute_Sigma(x, M, K_f, sigma_l_2, Theta_x)
     expected_shape_sigma = (N * M, N * M)
     if Sigma.shape != expected_shape_sigma:
         raise ValueError('Wrong shape of Sigma. Expected %s got %s' %(Sigma.shape, expected_shape_sigma))
@@ -85,12 +85,42 @@ def neg_log_likelihood(parameters, x, Y):
     return -1 * sum_log_likelihood
 
 
-def run(data_filepath, x_column, maxiter):
+def apply_model(x_train, Y_train, x_test, task_l, K_f, sigma_l_2, Theta_x):
+    # TODO: code duplication!
+    M = len(Y_train)
+    bold_y = np.reshape(Y_train, (Y_train.shape[0] * Y_train.shape[1]))
+    Sigma = compute_Sigma(x_train, M, K_f, sigma_l_2, Theta_x)
+    Sigma_inv = np.linalg.inv(Sigma)
+
+    predictions = []
+    for x_idx in range(len(x_test)):
+        mu = do_inference(K_f[:, task_l], Sigma_inv, x_train, bold_y, x_test[x_idx])
+        predictions.append(mu)
+    return predictions
+
+
+def optimize(x_train, Y_train, optimization_method, maxiter):
     def log_iteration(current_params):
         global optimization_steps
         optimization_steps += 1
         print('Evaluated:', optimization_steps, current_params)
 
+    M = len(Y_train)
+    optimizee = functools.partial(neg_log_likelihood, x=x_train, Y=Y_train)
+    params0 = multitask.utils.pack_params(np.tril(np.random.rand(M, M)), np.random.rand(M), np.random.rand(2))
+
+    options = dict()
+    if maxiter:
+        options['maxiter'] = maxiter
+
+    result = scipy.optimize.minimize(optimizee, params0,
+                                     method=optimization_method,
+                                     callback=log_iteration,
+                                     options=options)
+    return result.x
+
+
+def run(data_filepath, x_column, optimization_method, maxiter):
     with open(data_filepath, 'r') as fp:
         dataset = arff.load(fp)
     x_idx = None
@@ -107,23 +137,22 @@ def run(data_filepath, x_column, maxiter):
     data = np.array(dataset['data'])
     x = data[:,x_idx]
     Y = np.array([data[:,y_idx] for y_idx in y_indices])
-    optimizee = functools.partial(neg_log_likelihood, x=x, Y=Y)
-    params0 = multitask.utils.pack_params(np.eye(len(Y)), [0.1, 0.1])
 
-    optimizee(params0)
+    x_train = x[range(0, len(x), 2)]
+    Y_train = Y[:, range(0, len(x), 2)]
 
-    options = dict()
-    if maxiter:
-        options['maxiter'] = maxiter
+    x_test = x[range(1, len(x), 2)]
+    Y_test = Y[:, range(1, len(x), 2)]
 
-    # result = scipy.optimize.minimize(optimizee, params0,
-    #                                  method='BFGS',
-    #                                  callback=log_iteration,
-    #                                  options=options)
-    # print(result)
+    parameters = optimize(x_train, Y_train, optimization_method, maxiter)
+    L, sigma_l_2, Theta_x = multitask.utils.unpack_params(parameters, len(Y))
+    K_f = L.dot(L.T)
+    for i in range(len(Y)):
+        predictions = apply_model(x_train, Y_train, x_test, i, K_f, sigma_l_2, Theta_x)
+        print(predictions)
 
 
 if __name__ == '__main__':
     args = parse_args()
     optimization_steps = 0
-    run(args.data_file, args.x_column, args.maxiter)
+    run(args.data_file, args.x_column, args.optimization_method, args.maxiter)
