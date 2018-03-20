@@ -13,10 +13,18 @@ def parse_args():
     return parser.parse_args()
 
 
-def plot(x, mu, sigma, target_name, param_name, num_samples=25):
+def plot(x_train, y_train, x, mu, sigma, target_name, param_name, num_samples=3):
     fig, ax = plt.subplots()
-    for i in range(num_samples):
-        ax.plot(x, np.random.multivariate_normal(mu, sigma))
+
+    variance = sigma.diagonal()
+    ax.fill_between(x, mu - variance ** 0.5, mu + variance ** 0.5, color="#dddddd")
+    ax.plot(x, mu, 'r--', lw=2)
+
+    if num_samples:
+        for i in range(num_samples):
+            ax.plot(x, np.random.multivariate_normal(mu, sigma))
+
+    ax.plot(x_train, y_train, 'bs', ms=4)
     ax.set(xlabel=param_name, ylabel='predictive_accuracy',
            title='GP on ' + target_name)
 
@@ -62,7 +70,7 @@ def run(data_filepath, x_column):
         print(current_target)
         y = data[:, y_idx]
         mu, sigma = get_posterior(x_star, x, y)
-        plot(x_star, mu, sigma, target_name=current_target, param_name=x_column)
+        plot(x, y, x_star, mu, sigma, target_name=current_target, param_name=x_column)
 
 
 if __name__ == '__main__':
