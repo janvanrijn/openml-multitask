@@ -34,20 +34,6 @@ def plot(x_train, y_train, x, mu, sigma, target_name, param_name, num_samples=3)
     fig.savefig(fname=target_name)
 
 
-def get_posterior(x_star, x, y):
-    # This fn implements Eq. 2.19 from Rasmussen and Williams
-    K_vv = multitask.utils.rbf_kernel1D(x, x)
-    K_sv = multitask.utils.rbf_kernel1D(x_star, x)
-    K_vs = multitask.utils.rbf_kernel1D(x, x_star)
-    K_ss = multitask.utils.rbf_kernel1D(x_star, x_star)
-
-    K_inv = np.linalg.inv(K_vv)
-
-    mu = K_sv.dot(K_inv).dot(y)              # predictive means
-    sigma = K_ss - K_sv.dot(K_inv).dot(K_vs) # covariance matrix (stdevs are on the diagonal)
-    return mu, sigma
-
-
 def run(data_filepath, x_column, plot_dir):
     plot_offset = 3
     with open(data_filepath, 'r') as fp:
@@ -71,7 +57,7 @@ def run(data_filepath, x_column, plot_dir):
         current_target = dataset['attributes'][y_idx][0]
         print(current_target)
         y = data[:, y_idx]
-        mu, sigma = get_posterior(x_star, x, y)
+        mu, sigma = multitask.utils.get_posterior(x_star, x, y)
         plot(x, y, x_star, mu, sigma, target_name=plot_dir + current_target, param_name=x_column)
 
 
