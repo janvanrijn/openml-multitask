@@ -9,6 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
+    parser.add_argument('--plot_directory', type=str, default='C:/experiments/multitask/single/')
 
     return parser.parse_args()
 
@@ -28,6 +29,7 @@ def plot(x_train, y_train, x, mu, sigma, target_name, param_name, num_samples=3)
     ax.set(xlabel=param_name, ylabel='predictive_accuracy',
            title='GP on ' + target_name)
 
+    ax.set_xlim([x[0], x[-1]])
     ax.set_ylim([0., 1.])
     fig.savefig(fname=target_name)
 
@@ -46,7 +48,7 @@ def get_posterior(x_star, x, y):
     return mu, sigma
 
 
-def run(data_filepath, x_column):
+def run(data_filepath, x_column, plot_dir):
     plot_offset = 3
     with open(data_filepath, 'r') as fp:
         dataset = arff.load(fp)
@@ -70,9 +72,9 @@ def run(data_filepath, x_column):
         print(current_target)
         y = data[:, y_idx]
         mu, sigma = get_posterior(x_star, x, y)
-        plot(x, y, x_star, mu, sigma, target_name=current_target, param_name=x_column)
+        plot(x, y, x_star, mu, sigma, target_name=plot_dir + current_target, param_name=x_column)
 
 
 if __name__ == '__main__':
     args = parse_args()
-    run(args.data_file, args.x_column)
+    run(args.data_file, args.x_column, args.plot_directory)
