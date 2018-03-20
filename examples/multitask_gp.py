@@ -3,15 +3,18 @@ import arff
 import functools
 import multitask
 import numpy as np
+import os
+import pickle
 import scipy.stats
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
+    parser.add_argument('--cache_directory', type=str, default='C:/experiments/multitask/cache/')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
-    parser.add_argument('--maxiter', type=int, default=1000)
+    parser.add_argument('--maxiter', type=int, default=None)
 
     return parser.parse_args()
 
@@ -117,10 +120,36 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
                                      method=optimization_method,
                                      callback=log_iteration,
                                      options=options)
-    return result.x
+    return result
 
 
-def run(data_filepath, x_column, optimization_method, maxiter):
+def optimize_decorator(x_train, Y_train, optimization_method, maxiter, cahce_directory):
+    if cahce_directory[-1] != '/':
+        raise ValueError('Cache directory should have tailing slash')
+
+    fn_hash = str(hash(tuple(x_train))) + '__' + \
+              str(hash(tuple(map(tuple, Y_train)))) + '__' + \
+              optimization_method + '__' + \
+              str(maxiter)
+    filepath = cahce_directory + fn_hash + '.pkl'
+
+    if os.path.isfile(filepath):
+        print('Optimization result obtained from cache..')
+        with open(filepath, 'rb') as fp:
+            return pickle.load(fp)
+
+    try:
+        os.mkdir(cahce_directory)
+    except FileExistsError:
+        pass
+
+    result = optimize(x_train, Y_train, optimization_method, maxiter)
+    with open(filepath, 'wb') as fp:
+        pickle.dump(result, fp)
+    return result
+
+
+def run(data_filepath, x_column, optimization_method, maxiter, cache_directory):
     with open(data_filepath, 'r') as fp:
         dataset = arff.load(fp)
     x_idx = None
@@ -144,7 +173,10 @@ def run(data_filepath, x_column, optimization_method, maxiter):
     x_test = x[range(1, len(x), 2)]
     Y_test = Y[:, range(1, len(x), 2)]
 
-    parameters = optimize(x_train, Y_train, optimization_method, maxiter)
+    # convert ndarrays to tuples for lru_cache
+    result = optimize_decorator(x_train, Y_train, optimization_method, maxiter, cache_directory)
+    print(result)
+    parameters = result.x
     L, sigma_l_2, Theta_x = multitask.utils.unpack_params(parameters, len(Y))
     K_f = L.dot(L.T)
     for i in range(len(Y)):
@@ -155,4 +187,4 @@ def run(data_filepath, x_column, optimization_method, maxiter):
 if __name__ == '__main__':
     args = parse_args()
     optimization_steps = 0
-    run(args.data_file, args.x_column, args.optimization_method, args.maxiter)
+    run(args.data_file, args.x_column, args.optimization_method, args.maxiter, args.cache_directory)
