@@ -22,15 +22,18 @@ class TestMiscFunctions(unittest.TestCase):
         self.x_star = np.linspace(min(self.x), max(self.x), 4 * len(self.x))
 
     def test_get_posterior(self):
-        mu, sigma = multitask.utils.get_posterior(self.x_star, self.x, self.y)
+        mu, sigma, lmk = multitask.utils.get_posterior(self.x_star, self.x, self.y)
 
         mu_prime = []
         sigma_prime = []
+        lmk_prime = None
         for x_star_single in list(self.x_star):
             result = multitask.utils.get_posterior_single_point(x_star_single, self.x, self.y)
             mu_prime.append(result[0])
             sigma_prime.append(result[1])
+            lmk_prime = result[2]
 
         np.testing.assert_array_almost_equal(mu, np.array(mu_prime))
         # sigma contains covariance matrix. sigma prime contains variances. Diagonal of cov matrix = variances
         np.testing.assert_array_almost_equal(np.diagonal(sigma), np.array(sigma_prime))
+        self.assertEqual(lmk, lmk_prime)

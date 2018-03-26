@@ -11,12 +11,13 @@ import scipy.stats
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
+    parser.add_argument('--use_cache', action='store_true', default=False)
     parser.add_argument('--cache_directory', type=str, default='C:/experiments/multitask/cache/')
     parser.add_argument('--plot_directory', type=str, default='C:/experiments/multitask/multi/')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
-    parser.add_argument('--maxiter', type=int, default=None)
+    parser.add_argument('--maxiter', type=int, default=1)
 
     return parser.parse_args()
 
@@ -58,6 +59,7 @@ def do_inference(k_l_f, Sigma_inv, x, bold_y, x_star):
     # TODO: calculating variance based on Rasmussen Eq. 2.26.
     # TODO: question: How to incorporate data kernel in first part of equation (part before minus operator)?
     variance = multitask.utils.rbf_kernel1D(x_star, x_star) - k_combined.T.dot(Sigma_inv).dot(k_combined)
+
     if not isinstance(f_l_bar, float):
         raise ValueError('predictive mean should be a scalar')
     if not isinstance(variance, float):
@@ -83,18 +85,11 @@ def neg_log_likelihood(parameters, x, Y):
         raise ValueError('Wrong shape of Sigma. Expected %s got %s' %(Sigma.shape, expected_shape_sigma))
     Sigma_inv = np.linalg.inv(Sigma)
 
-    sum_log_likelihood = 0.0
-    for task_l in range(M):
-        for x_idx in range(N):
-            mu, _ = do_inference(K_f[:, task_l], Sigma_inv, x, bold_y, x[x_idx])
-            # TODO: assumption: we could use sigma (co-variance matrix) here (instead of predictive variance)
-            current_loglikelyhood = scipy.stats.norm(mu, Sigma[x_idx][x_idx]).logpdf(Y[task_l][x_idx])
-            sum_log_likelihood += current_loglikelyhood
-    return -1 * sum_log_likelihood
+    lml = multitask.utils.inference._marginal_likelihood(Sigma, Sigma_inv, bold_y)
+    return -1 * lml
 
 
 def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, target_name):
-    # TODO: code duplication!
     M = len(Y_train)
     bold_y = np.reshape(Y_train, (Y_train.shape[0] * Y_train.shape[1]))
     Sigma = compute_Sigma(x_train, M, K_f, sigma_l_2, Theta_x)
@@ -127,10 +122,14 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
         optimization_steps += 1
         print('Evaluated:', optimization_steps, current_params)
 
-    M = len(Y_train)
     optimizee = functools.partial(neg_log_likelihood, x=x_train, Y=Y_train)
     # assumptions: we have to learn the variance of the tasks (sigma_l_2)
-    params0 = multitask.utils.pack_params(np.tril(np.random.rand(M, M)), None, None) # TODO: replace None with sigma_l_2
+    N = len(x_train)
+    K_x = multitask.utils.rbf_kernel1D(x_train, x_train)
+    K_x_inv = np.linalg.inv(K_x)
+    K_f_init = 1 / N * Y_train.dot(K_x_inv).dot(Y_train.T) # TODO: where has the transpose gone?
+    K_f_init_inv = np.linalg.cholesky(K_f_init)
+    params0 = multitask.utils.pack_params(np.tril(K_f_init_inv), None, None) # TODO: replace None with sigma_l_2
 
     options = dict()
     if maxiter:
@@ -140,10 +139,11 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
                                      method=optimization_method,
                                      callback=log_iteration,
                                      options=options)
+
     return result
 
 
-def optimize_decorator(x_train, Y_train, optimization_method, maxiter, cahce_directory):
+def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cahce_directory):
     if cahce_directory[-1] != '/':
         raise ValueError('Cache directory should have tailing slash')
 
@@ -153,7 +153,7 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, cahce_dir
               str(maxiter)
     filepath = cahce_directory + fn_hash + '.pkl'
 
-    if os.path.isfile(filepath):
+    if os.path.isfile(filepath) and use_cache:
         print('Optimization result obtained from cache..')
         with open(filepath, 'rb') as fp:
             return pickle.load(fp)
@@ -169,7 +169,7 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, cahce_dir
     return result
 
 
-def run(data_filepath, x_column, optimization_method, maxiter, cache_directory, plot_directory):
+def run(data_filepath, x_column, optimization_method, maxiter, use_cache, cache_directory, plot_directory):
     with open(data_filepath, 'r') as fp:
         dataset = arff.load(fp)
     x_idx = None
@@ -187,8 +187,7 @@ def run(data_filepath, x_column, optimization_method, maxiter, cache_directory, 
     x_train = data[:,x_idx]
     Y_train = np.array([data[:,y_idx] for y_idx in y_indices])
 
-    # convert ndarrays to tuples for lru_cache
-    result = optimize_decorator(x_train, Y_train, optimization_method, maxiter, cache_directory)
+    result = optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cache_directory)
     incumbent = result.x
     L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, len(Y_train), include_sigma=False, include_theta=False)
     K_f = L.dot(L.T)
@@ -202,4 +201,10 @@ def run(data_filepath, x_column, optimization_method, maxiter, cache_directory, 
 if __name__ == '__main__':
     args = parse_args()
     optimization_steps = 0
-    run(args.data_file, args.x_column, args.optimization_method, args.maxiter, args.cache_directory, args.plot_directory)
+    run(args.data_file,
+        args.x_column,
+        args.optimization_method,
+        args.maxiter,
+        args.use_cache,
+        args.cache_directory,
+        args.plot_directory)
