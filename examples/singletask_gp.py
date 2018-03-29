@@ -9,7 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
-    parser.add_argument('--max_tasks', type=int, default=1)
+    parser.add_argument('--max_tasks', type=int, default=None)
     parser.add_argument('--plot_directory', type=str, default='C:/experiments/multitask/single/')
 
     return parser.parse_args()
@@ -28,7 +28,7 @@ def plot(x_train, y_train, x, mu, sigma, target_name, param_name, num_samples=3)
 
     ax.plot(x_train, y_train, 'bs', ms=4)
     ax.set(xlabel=param_name, ylabel='predictive_accuracy',
-           title='GP on ' + target_name)
+           title='Single Task GP on ' + target_name)
 
     ax.set_xlim([x[0], x[-1]])
     ax.set_ylim([0., 1.])

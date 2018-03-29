@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--max_tasks', type=int, default=None)
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
-    parser.add_argument('--maxiter', type=int, default=1)
+    parser.add_argument('--maxiter', type=int, default=None)
 
     return parser.parse_args()
 
@@ -91,7 +91,7 @@ def neg_log_likelihood(parameters, x, Y_train):
     return -1 * lml
 
 
-def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, target_name):
+def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, param_name, target_name):
     N, M = Y_train.shape
     bold_y = np.reshape(Y_train.T, (N * M)).T
     Sigma = compute_Sigma(x_train, M, K_f, sigma_l_2, Theta_x)
@@ -113,6 +113,8 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, t
     ax.fill_between(x_vals, errorbar_low, errorbar_up, color="#dddddd")
     ax.plot(x_vals, predictions, 'r--', lw=2)
     ax.plot(x_train, Y_train[:, task_l], 'bs', ms=4)
+    ax.set(xlabel=param_name, ylabel='predictive_accuracy',
+           title='Multi Task GP on ' + target_name)
 
     ax.set_ylim([0., 1.])
     fig.savefig(fname=target_name)
@@ -195,11 +197,14 @@ def run(args):
     incumbent = result.x
     L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, M, include_sigma=False, include_theta=False)
     K_f = L.dot(L.T)
+    # TODO: why is K_f not equal to [[1]] when we use just one task (i.e., M=1, see email to Andreas on March 29)
 
     for idx, y_column in enumerate(y_indices):
         current_target = dataset['attributes'][y_column][0]
         print(current_target)
-        plot_model(x_train, Y_train, idx, K_f, sigma_l_2, Theta_x, plot_offset=0, target_name=args.plot_directory + current_target + '.png')
+        plot_model(x_train, Y_train, idx, K_f, sigma_l_2, Theta_x,
+                   plot_offset=3, param_name=dataset['attributes'][x_idx][0],
+                   target_name=args.plot_directory + current_target + '.png')
 
 
 if __name__ == '__main__':
