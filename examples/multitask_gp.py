@@ -75,7 +75,7 @@ def neg_log_likelihood(parameters, x, Y_train):
     # - the Cholesky decomposition of K_f (size: len(Y_train)^2)
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
     N, M = Y_train.shape
-    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=False, include_theta=False) #TODO: include Sigma/Theta again
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=True, include_theta=True)
     K_f = L.dot(L.T)
 
     bold_y = np.reshape(Y_train.T, (N * M)).T
@@ -133,7 +133,7 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
     K_x_inv = np.linalg.inv(K_x)
     K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
     K_f_init_inv = np.linalg.cholesky(K_f_init)
-    params0 = multitask.utils.pack_params(np.tril(K_f_init_inv), None, None) # TODO: replace None with sigma_l_2
+    params0 = multitask.utils.pack_params(np.tril(K_f_init_inv), [1.0, 1.0], np.zeros(M))
 
     options = dict()
     if maxiter:
@@ -195,7 +195,7 @@ def run(args):
 
     result = optimize_decorator(x_train, Y_train, args.optimization_method, args.maxiter, args.use_cache, args.cache_directory)
     incumbent = result.x
-    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, M, include_sigma=False, include_theta=False)
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, M, include_sigma=True, include_theta=True)
     K_f = L.dot(L.T)
     # TODO: why is K_f not equal to [[1]] when we use just one task (i.e., M=1, see email to Andreas on March 29)
 
@@ -208,4 +208,6 @@ def run(args):
 
 
 if __name__ == '__main__':
+    # used by optimizer to keep a count
+    optimization_steps = 0
     run(parse_args())
