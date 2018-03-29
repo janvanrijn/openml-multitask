@@ -16,6 +16,7 @@ def parse_args():
     parser.add_argument('--plot_directory', type=str, default='C:/experiments/multitask/multi/')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
+    parser.add_argument('--max_tasks', type=int, default=None)
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
     parser.add_argument('--maxiter', type=int, default=1)
 
@@ -42,7 +43,7 @@ def compute_Sigma(x, M, K_f, sigma_l_2, Theta_x):
     return Sigma
 
 
-def do_inference(k_l_f, Sigma_inv, x, bold_y, x_star):
+def do_inference(k_l_f, task_l, Sigma_inv, x, bold_y, x_star):
     if not isinstance(x_star, float):
         raise ValueError('x_star should be scalar, got: %s' %x_star)
     if not Sigma_inv.shape[0] == Sigma_inv.shape[1]:
@@ -58,7 +59,7 @@ def do_inference(k_l_f, Sigma_inv, x, bold_y, x_star):
     f_l_bar = k_combined.T.dot(Sigma_inv).dot(bold_y)
     # TODO: calculating variance based on Rasmussen Eq. 2.26.
     # TODO: question: How to incorporate data kernel in first part of equation (part before minus operator)?
-    variance = multitask.utils.rbf_kernel1D(x_star, x_star) - k_combined.T.dot(Sigma_inv).dot(k_combined)
+    variance = np.kron(k_l_f[task_l], multitask.utils.rbf_kernel1D(x_star, x_star)) - k_combined.T.dot(Sigma_inv).dot(k_combined)
 
     if not isinstance(f_l_bar, float):
         raise ValueError('predictive mean should be a scalar')
@@ -77,11 +78,13 @@ def neg_log_likelihood(parameters, x, Y_train):
     L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=False, include_theta=False) #TODO: include Sigma/Theta again
     K_f = L.dot(L.T)
 
-    bold_y = np.reshape(Y_train.T, (N * M))
+    bold_y = np.reshape(Y_train.T, (N * M)).T
     Sigma = compute_Sigma(x, M, K_f, sigma_l_2, Theta_x)
     expected_shape_sigma = (N * M, N * M)
     if Sigma.shape != expected_shape_sigma:
         raise ValueError('Wrong shape of Sigma. Expected %s got %s' %(Sigma.shape, expected_shape_sigma))
+    # if np.linalg.det(Sigma) == 0:
+    #     raise ValueError('Sigma has determinant of zero. ')
     Sigma_inv = np.linalg.inv(Sigma)
 
     lml = multitask.utils.inference._marginal_likelihood(Sigma, Sigma_inv, bold_y)
@@ -90,7 +93,7 @@ def neg_log_likelihood(parameters, x, Y_train):
 
 def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, target_name):
     N, M = Y_train.shape
-    bold_y = np.reshape(Y_train.T, (N * M))
+    bold_y = np.reshape(Y_train.T, (N * M)).T
     Sigma = compute_Sigma(x_train, M, K_f, sigma_l_2, Theta_x)
     Sigma_inv = np.linalg.inv(Sigma)
 
@@ -98,8 +101,8 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, t
     predictions = []
     errorbar_low = []
     errorbar_up = []
-    for x_val in range(len(x_vals)):
-        mu, variance = do_inference(K_f[:, task_l], Sigma_inv, x_train, bold_y, x_val * 1.0)
+    for x_val in x_vals:
+        mu, variance = do_inference(K_f[:, task_l], task_l, Sigma_inv, x_train, bold_y, x_val * 1.0)
         stdev = variance ** 0.5
 
         predictions.append(mu)
@@ -123,7 +126,7 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
 
     optimizee = functools.partial(neg_log_likelihood, x=x_train, Y_train=Y_train)
     # assumptions: we have to learn the variance of the tasks (sigma_l_2)
-    N = len(x_train)
+    N, M = Y_train.shape
     K_x = multitask.utils.rbf_kernel1D(x_train, x_train)
     K_x_inv = np.linalg.inv(K_x)
     K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
@@ -163,31 +166,32 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache
         pass
 
     result = optimize(x_train, Y_train, optimization_method, maxiter)
-    with open(filepath, 'wb') as fp:
-        pickle.dump(result, fp)
+    if use_cache:
+        with open(filepath, 'wb') as fp:
+            pickle.dump(result, fp)
     return result
 
 
-def run(data_filepath, x_column, optimization_method, maxiter, use_cache, cache_directory, plot_directory):
-    with open(data_filepath, 'r') as fp:
+def run(args):
+    with open(args.data_file, 'r') as fp:
         dataset = arff.load(fp)
     x_idx = None
     y_indices = []
     for idx, (column, type) in enumerate(dataset['attributes']):
-        if column == x_column:
+        if column == args.x_column:
             x_idx = idx
-        else:
+        elif args.max_tasks is None or len(y_indices) < args.max_tasks:
             y_indices.append(idx)
 
     if x_idx is None:
-        raise ValueError('Couldn\'t find x column: %s' %x_column)
+        raise ValueError('Couldn\'t find x column: %s' %args.x_column)
 
     data = np.array(dataset['data'])
     x_train = data[:,x_idx]
     Y_train = np.array([data[:, y_idx] for y_idx in y_indices]).T
     N, M = Y_train.shape
 
-    result = optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cache_directory)
+    result = optimize_decorator(x_train, Y_train, args.optimization_method, args.maxiter, args.use_cache, args.cache_directory)
     incumbent = result.x
     L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, M, include_sigma=False, include_theta=False)
     K_f = L.dot(L.T)
@@ -195,16 +199,8 @@ def run(data_filepath, x_column, optimization_method, maxiter, use_cache, cache_
     for idx, y_column in enumerate(y_indices):
         current_target = dataset['attributes'][y_column][0]
         print(current_target)
-        plot_model(x_train, Y_train, idx, K_f, sigma_l_2, Theta_x, plot_offset=0, target_name=plot_directory + current_target + '.png')
+        plot_model(x_train, Y_train, idx, K_f, sigma_l_2, Theta_x, plot_offset=0, target_name=args.plot_directory + current_target + '.png')
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    optimization_steps = 0
-    run(args.data_file,
-        args.x_column,
-        args.optimization_method,
-        args.maxiter,
-        args.use_cache,
-        args.cache_directory,
-        args.plot_directory)
+    run(parse_args())

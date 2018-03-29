@@ -9,6 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
+    parser.add_argument('--max_tasks', type=int, default=1)
     parser.add_argument('--plot_directory', type=str, default='C:/experiments/multitask/single/')
 
     return parser.parse_args()
@@ -34,20 +35,20 @@ def plot(x_train, y_train, x, mu, sigma, target_name, param_name, num_samples=3)
     fig.savefig(fname=target_name)
 
 
-def run(data_filepath, x_column, plot_dir):
+def run(args):
     plot_offset = 3
-    with open(data_filepath, 'r') as fp:
+    with open(args.data_file, 'r') as fp:
         dataset = arff.load(fp)
     x_idx = None
     y_indices = []
     for idx, (column, type) in enumerate(dataset['attributes']):
-        if column == x_column:
+        if column == args.x_column:
             x_idx = idx
-        else:
+        elif args.max_tasks is None or len(y_indices) < args.max_tasks:
             y_indices.append(idx)
 
     if x_idx is None:
-        raise ValueError('Couldn\'t find x column: %s' %x_column)
+        raise ValueError('Couldn\'t find x column: %s' %args.x_column)
 
     data = np.array(dataset['data'])
     x = data[:,x_idx]
@@ -57,10 +58,9 @@ def run(data_filepath, x_column, plot_dir):
         current_target = dataset['attributes'][y_idx][0]
         print(current_target)
         y = data[:, y_idx]
-        mu, sigma = multitask.utils.get_posterior(x_star, x, y)
-        plot(x, y, x_star, mu, sigma, target_name=plot_dir + current_target, param_name=x_column)
+        mu, sigma, _ = multitask.utils.get_posterior(x_star, x, y)
+        plot(x, y, x_star, mu, sigma, target_name=args.plot_directory + current_target, param_name=args.x_column)
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    run(args.data_file, args.x_column, args.plot_directory)
+    run(parse_args())

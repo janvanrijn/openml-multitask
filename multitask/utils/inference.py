@@ -3,8 +3,8 @@ import numpy as np
 
 
 def _marginal_likelihood(K_vv, K_vv_inv, y):
-    # TODO: why does this not depend on predictions?
-    return -0.5*y.T.dot(K_vv_inv).dot(y) - 0.5 * np.log(np.linalg.det(K_vv)) - len(y) / 2 * np.log(2*np.pi)
+    n = len(y) # TODO: double check, are we sure it should ben len(y)?
+    return -0.5*y.T.dot(K_vv_inv).dot(y) - 0.5 * np.log(np.linalg.det(K_vv)) - n / 2 * np.log(2*np.pi)
 
 
 def get_posterior(x_star, x, y):
