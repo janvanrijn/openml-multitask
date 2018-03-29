@@ -67,18 +67,17 @@ def do_inference(k_l_f, Sigma_inv, x, bold_y, x_star):
     return f_l_bar, variance
 
 
-def neg_log_likelihood(parameters, x, Y):
+def neg_log_likelihood(parameters, x, Y_train):
     # this function is used by scipy.optimize.minimize(). Therefore, the
     # parameters to be optimized are wrapped in the single argument
     # 'parameters', which is an array of floats. Contains
-    # - the Cholesky decomposition of K_f (size: len(Y)^2)
+    # - the Cholesky decomposition of K_f (size: len(Y_train)^2)
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
-    N = len(x)
-    M = len(Y)
+    N, M = Y_train.shape
     L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=False, include_theta=False) #TODO: include Sigma/Theta again
     K_f = L.dot(L.T)
 
-    bold_y = np.reshape(Y, (Y.shape[0] * Y.shape[1]))
+    bold_y = np.reshape(Y_train.T, (N * M))
     Sigma = compute_Sigma(x, M, K_f, sigma_l_2, Theta_x)
     expected_shape_sigma = (N * M, N * M)
     if Sigma.shape != expected_shape_sigma:
@@ -90,8 +89,8 @@ def neg_log_likelihood(parameters, x, Y):
 
 
 def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, target_name):
-    M = len(Y_train)
-    bold_y = np.reshape(Y_train, (Y_train.shape[0] * Y_train.shape[1]))
+    N, M = Y_train.shape
+    bold_y = np.reshape(Y_train.T, (N * M))
     Sigma = compute_Sigma(x_train, M, K_f, sigma_l_2, Theta_x)
     Sigma_inv = np.linalg.inv(Sigma)
 
@@ -110,7 +109,7 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, t
     fig, ax = plt.subplots()
     ax.fill_between(x_vals, errorbar_low, errorbar_up, color="#dddddd")
     ax.plot(x_vals, predictions, 'r--', lw=2)
-    ax.plot(x_train, Y_train[task_l], 'bs', ms=4)
+    ax.plot(x_train, Y_train[:, task_l], 'bs', ms=4)
 
     ax.set_ylim([0., 1.])
     fig.savefig(fname=target_name)
@@ -122,12 +121,12 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
         optimization_steps += 1
         print('Evaluated:', optimization_steps, current_params)
 
-    optimizee = functools.partial(neg_log_likelihood, x=x_train, Y=Y_train)
+    optimizee = functools.partial(neg_log_likelihood, x=x_train, Y_train=Y_train)
     # assumptions: we have to learn the variance of the tasks (sigma_l_2)
     N = len(x_train)
     K_x = multitask.utils.rbf_kernel1D(x_train, x_train)
     K_x_inv = np.linalg.inv(K_x)
-    K_f_init = 1 / N * Y_train.dot(K_x_inv).dot(Y_train.T) # TODO: where has the transpose gone?
+    K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
     K_f_init_inv = np.linalg.cholesky(K_f_init)
     params0 = multitask.utils.pack_params(np.tril(K_f_init_inv), None, None) # TODO: replace None with sigma_l_2
 
@@ -185,11 +184,12 @@ def run(data_filepath, x_column, optimization_method, maxiter, use_cache, cache_
 
     data = np.array(dataset['data'])
     x_train = data[:,x_idx]
-    Y_train = np.array([data[:,y_idx] for y_idx in y_indices])
+    Y_train = np.array([data[:, y_idx] for y_idx in y_indices]).T
+    N, M = Y_train.shape
 
     result = optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cache_directory)
     incumbent = result.x
-    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, len(Y_train), include_sigma=False, include_theta=False)
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, M, include_sigma=False, include_theta=False)
     K_f = L.dot(L.T)
 
     for idx, y_column in enumerate(y_indices):
