@@ -8,7 +8,7 @@ def _log_marginal_likelihood(K_vv, K_vv_inv, y):
     return -0.5*y.T.dot(K_vv_inv).dot(y) - 0.5 * np.log(np.linalg.det(K_vv)) - n / 2 * np.log(2*np.pi)
 
 
-def get_posterior(x_star, x, y):
+def get_posterior(x_star, x, y, theta0, theta1):
     # implements Eq. 2.19 from Rasmussen and Williams
     if not isinstance(x_star, np.ndarray):
         raise ValueError()
@@ -21,10 +21,10 @@ def get_posterior(x_star, x, y):
     if not (x_star.ndim == x.ndim == y.ndim == 1):
         raise ValueError()
 
-    K_vv = multitask.utils.rbf_kernel1D(x, x)
-    K_sv = multitask.utils.rbf_kernel1D(x_star, x)
-    K_vs = multitask.utils.rbf_kernel1D(x, x_star)
-    K_ss = multitask.utils.rbf_kernel1D(x_star, x_star)
+    K_vv = multitask.utils.rbf_kernel1D(x, x, theta0, theta1)
+    K_sv = multitask.utils.rbf_kernel1D(x_star, x, theta0, theta1)
+    K_vs = multitask.utils.rbf_kernel1D(x, x_star, theta0, theta1)
+    K_ss = multitask.utils.rbf_kernel1D(x_star, x_star, theta0, theta1)
 
     K_vv_inv = np.linalg.inv(K_vv)
 
@@ -34,7 +34,7 @@ def get_posterior(x_star, x, y):
     return mu, sigma, log_marginal_likelihood
 
 
-def get_posterior_single_point(x_star, x, y):
+def get_posterior_single_point(x_star, x, y, theta0, theta1):
     # implements Eq. 2.25/2.26 from Rasmussen and Williams
     if not isinstance(x_star, float):
         raise ValueError()
@@ -47,10 +47,10 @@ def get_posterior_single_point(x_star, x, y):
     if not (x.ndim == y.ndim == 1):
         raise ValueError()
 
-    k_vv = multitask.utils.rbf_kernel1D(x, x)
-    k_sv = multitask.utils.rbf_kernel1D(x_star, x)
-    # k_vs = multitask.utils.rbf_kernel1D(x, x_star)
-    k_ss = multitask.utils.rbf_kernel1D(x_star, x_star)
+    k_vv = multitask.utils.rbf_kernel1D(x, x, theta0, theta1)
+    k_sv = multitask.utils.rbf_kernel1D(x_star, x, theta0, theta1)
+    # k_vs = multitask.utils.rbf_kernel1D(x, x_star, theta0, theta1)
+    k_ss = multitask.utils.rbf_kernel1D(x_star, x_star, theta0, theta1)
 
     k_vv_inv = np.linalg.inv(k_vv)
 

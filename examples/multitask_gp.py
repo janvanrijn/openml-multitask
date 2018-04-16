@@ -48,7 +48,7 @@ def compute_Sigma(x, M, K_f, sigma_l_2, Theta_x):
     return Sigma
 
 
-def do_inference(k_l_f, task_l, Sigma_inv, x, bold_y, x_star):
+def do_inference(k_l_f, task_l, Sigma_inv, Theta_x, x, bold_y, x_star):
     if not isinstance(x_star, float):
         raise ValueError('x_star should be scalar, got: %s' %x_star)
     if not Sigma_inv.shape[0] == Sigma_inv.shape[1]:
@@ -56,7 +56,7 @@ def do_inference(k_l_f, task_l, Sigma_inv, x, bold_y, x_star):
     if not (Sigma_inv.shape[1],) == bold_y.shape:
         raise ValueError('Sigma_inv and bold_y dimensions should match')
 
-    k_s_x = multitask.utils.rbf_kernel1D(x_star, x)
+    k_s_x = multitask.utils.rbf_kernel1D(x_star, x, Theta_x[0], Theta_x[1])
     if k_s_x.shape != (len(x), ):
         raise ValueError('Wrong dimensionality of k_s_x (check the kernel)')
 
@@ -64,7 +64,7 @@ def do_inference(k_l_f, task_l, Sigma_inv, x, bold_y, x_star):
     f_l_bar = k_combined.T.dot(Sigma_inv).dot(bold_y)
     # TODO: calculating variance based on Rasmussen Eq. 2.26.
     # TODO: question: How to incorporate data kernel in first part of equation (part before minus operator)?
-    variance = np.kron(k_l_f[task_l], multitask.utils.rbf_kernel1D(x_star, x_star)) - k_combined.T.dot(Sigma_inv).dot(k_combined)
+    variance = np.kron(k_l_f[task_l], multitask.utils.rbf_kernel1D(x_star, x_star, Theta_x[0], Theta_x[1])) - k_combined.T.dot(Sigma_inv).dot(k_combined)
 
     if not isinstance(f_l_bar, float):
         raise ValueError('predictive mean should be a scalar')
@@ -73,7 +73,7 @@ def do_inference(k_l_f, task_l, Sigma_inv, x, bold_y, x_star):
     return f_l_bar, variance
 
 
-def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optimize_sigma , default_L, default_theta, default_sigma):
+def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optimize_sigma, default_L, default_theta, default_sigma):
     # this function is used by scipy.optimize.minimize(). Therefore, the
     # parameters to be optimized are wrapped in the single argument
     # 'parameters', which is an array of floats. Contains
@@ -117,7 +117,13 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, p
     errorbar_low = []
     errorbar_up = []
     for x_val in x_vals:
-        mu, variance = do_inference(K_f[:, task_l], task_l, Sigma_inv, x_train, bold_y, x_val * 1.0)
+        mu, variance = do_inference(k_l_f=K_f[:, task_l],
+                                    task_l=task_l,
+                                    Sigma_inv=Sigma_inv,
+                                    Theta_x=Theta_x,
+                                    x=x_train,
+                                    bold_y=bold_y,
+                                    x_star=x_val * 1.0)
         stdev = variance ** 0.5
 
         predictions.append(mu)
@@ -213,8 +219,9 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache
     filepath = cahce_directory + fn_hash + '.pkl'
 
     # caclualte defaults
+    # TODO!!!!!! THIS ONE DEPENDS ON THETA_X
     N, M = Y_train.shape
-    K_x = multitask.utils.rbf_kernel1D(x_train, x_train)
+    K_x = multitask.utils.rbf_kernel1D(x_train, x_train, default_value_theta, default_value_theta)
     K_x_inv = np.linalg.inv(K_x)
     K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
     K_f_init_inv = np.linalg.cholesky(K_f_init)
@@ -271,6 +278,7 @@ def run(args):
                                                          optimize_theta=args.optimize_theta,
                                                          default_value_sigma=args.default_value_sigma,
                                                          default_value_theta=args.default_value_theta)
+    print(result)
     print('Theta_x', Theta_x)
     print('sigma_l_2', sigma_l_2)
 
