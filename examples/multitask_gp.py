@@ -18,12 +18,12 @@ def parse_args():
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--max_tasks', type=int, default=None)
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
-    parser.add_argument('--optimize_L', action='store_true', default=True)
-    parser.add_argument('--optimize_sigma', action='store_true', default=True)
+    parser.add_argument('--optimize_L', action='store_true', default=False)
+    parser.add_argument('--optimize_sigma', action='store_true', default=False)
     parser.add_argument('--optimize_theta', action='store_true', default=True)
     parser.add_argument('--default_value_sigma', type=float, default=0.0)
-    parser.add_argument('--default_value_theta', type=float, default=0.01)
-    parser.add_argument('--maxiter', type=int, default=1)
+    parser.add_argument('--default_value_theta', type=float, default=1)
+    parser.add_argument('--maxiter', type=int, default=None)
 
     return parser.parse_args()
 
@@ -268,6 +268,8 @@ def run(args):
                                                          optimize_theta=args.optimize_theta,
                                                          default_value_sigma=args.default_value_sigma,
                                                          default_value_theta=args.default_value_theta)
+    print('Theta_x', Theta_x)
+    print('sigma_l_2', sigma_l_2)
 
     if K_f.shape != (M, M):
         raise ValueError()
