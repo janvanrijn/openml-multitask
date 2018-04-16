@@ -17,13 +17,13 @@ def parse_args():
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--max_tasks', type=int, default=None)
-    parser.add_argument('--optimization_method', type=str, default='L-BFGS-B')
+    parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
     parser.add_argument('--optimize_L', action='store_true', default=True)
     parser.add_argument('--optimize_sigma', action='store_true', default=True)
     parser.add_argument('--optimize_theta', action='store_true', default=True)
     parser.add_argument('--default_value_sigma', type=float, default=0.0)
     parser.add_argument('--default_value_theta', type=float, default=0.01)
-    parser.add_argument('--maxiter', type=int, default=None)
+    parser.add_argument('--maxiter', type=int, default=1)
 
     return parser.parse_args()
 
@@ -193,7 +193,7 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache
         if not optimize_sigma:
             sigma_l_2 = default_sigma
 
-        return result, L.dot(L.T), Theta_x, sigma_l_2
+        return result, L.dot(L.T), np.array(Theta_x), np.array(sigma_l_2)
 
     if cahce_directory[-1] != '/':
         raise ValueError('Cache directory should have tailing slash')
@@ -256,6 +256,7 @@ def run(args):
     data = np.array(dataset['data'])
     x_train = data[:,x_idx]
     Y_train = np.array([data[:, y_idx] for y_idx in y_indices]).T
+    N, M = Y_train.shape
 
     result, K_f, Theta_x, sigma_l_2 = optimize_decorator(x_train, Y_train,
                                                          args.optimization_method,
@@ -267,6 +268,15 @@ def run(args):
                                                          optimize_theta=args.optimize_theta,
                                                          default_value_sigma=args.default_value_sigma,
                                                          default_value_theta=args.default_value_theta)
+
+    if K_f.shape != (M, M):
+        raise ValueError()
+
+    if Theta_x.shape != (2,):
+        raise ValueError('Theta_x wrong dimensions')
+
+    if sigma_l_2.shape != (M,):
+        raise ValueError('Sigma_l_2 wrong dimensions')
 
     for idx, y_column in enumerate(y_indices):
         current_target = dataset['attributes'][y_column][0]
