@@ -17,12 +17,12 @@ def parse_args():
     parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--max_tasks', type=int, default=None)
-    parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
+    parser.add_argument('--optimization_method', type=str, default='BFGS')
     parser.add_argument('--optimize_L', action='store_true', default=False)
     parser.add_argument('--optimize_sigma', action='store_true', default=False)
     parser.add_argument('--optimize_theta', action='store_true', default=True)
-    parser.add_argument('--default_value_sigma', type=float, default=0.0)
-    parser.add_argument('--default_value_theta', type=float, default=1)
+    parser.add_argument('--default_value_sigma', type=float, default=0.001)
+    parser.add_argument('--default_value_theta', type=float, default=1.0)
     parser.add_argument('--maxiter', type=int, default=None)
 
     return parser.parse_args()
@@ -80,7 +80,10 @@ def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optim
     # - the Cholesky decomposition of K_f (size: len(Y_train)^2)
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
     N, M = Y_train.shape
-    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=optimize_sigma, include_theta=optimize_theta, include_L=optimize_L)
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M,
+                                                          include_sigma=optimize_sigma,
+                                                          include_theta=optimize_theta,
+                                                          include_L=optimize_L)
     if L is None:
         L = default_L
     if Theta_x is None:
@@ -99,7 +102,7 @@ def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optim
     #     raise ValueError('Sigma has determinant of zero. ')
     Sigma_inv = np.linalg.inv(Sigma)
 
-    lml = multitask.utils.inference._marginal_likelihood(Sigma, Sigma_inv, bold_y)
+    lml = multitask.utils.inference._log_marginal_likelihood(Sigma, Sigma_inv, bold_y)
     return -1 * lml
 
 
@@ -126,7 +129,7 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, p
     ax.plot(x_vals, predictions, 'r--', lw=2)
     ax.plot(x_train, Y_train[:, task_l], 'bs', ms=4)
     ax.set(xlabel=param_name, ylabel='predictive_accuracy',
-           title='Multi Task GP on ' + target_name)
+           title='Multi Task GP on OpenML Task %s; Theta = %s\nsigma = %s\n' %(task_l, Theta_x, sigma_l_2))
 
     ax.set_ylim([0., 1.])
     fig.savefig(fname=target_name)
@@ -137,7 +140,6 @@ def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimiz
         global optimization_steps
         optimization_steps += 1
         print('Evaluated:', optimization_steps, current_params)
-
 
     L = None
     theta = None
@@ -173,7 +175,8 @@ def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimiz
     return result
 
 
-def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cahce_directory, optimize_L, optimize_theta, optimize_sigma, default_value_sigma, default_value_theta):
+def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cahce_directory, optimize_L,
+                       optimize_theta, optimize_sigma, default_value_sigma, default_value_theta):
     def unpack_result(result):
         L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(result.x,
                                                               M=M,
