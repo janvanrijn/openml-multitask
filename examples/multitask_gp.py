@@ -18,6 +18,11 @@ def parse_args():
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--max_tasks', type=int, default=None)
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
+    parser.add_argument('--optimize_L', action='store_true', default=False)
+    parser.add_argument('--optimize_sigma', action='store_true', default=False)
+    parser.add_argument('--optimize_theta', action='store_true', default=True)
+    parser.add_argument('--default_value_sigma', type=float, default=0.0)
+    parser.add_argument('--default_value_theta', type=float, default=1)
     parser.add_argument('--maxiter', type=int, default=None)
 
     return parser.parse_args()
@@ -68,14 +73,21 @@ def do_inference(k_l_f, task_l, Sigma_inv, x, bold_y, x_star):
     return f_l_bar, variance
 
 
-def neg_log_likelihood(parameters, x, Y_train):
+def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optimize_sigma , default_L, default_theta, default_sigma):
     # this function is used by scipy.optimize.minimize(). Therefore, the
     # parameters to be optimized are wrapped in the single argument
     # 'parameters', which is an array of floats. Contains
     # - the Cholesky decomposition of K_f (size: len(Y_train)^2)
     # - Theta_x (size: 2) # TODO: Assumption: we use the same theta for each task
     N, M = Y_train.shape
-    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=True, include_theta=True)
+    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(parameters, M, include_sigma=optimize_sigma, include_theta=optimize_theta, include_L=optimize_L)
+    if L is None:
+        L = default_L
+    if Theta_x is None:
+        Theta_x = default_theta
+    if sigma_l_2 is None:
+        sigma_l_2 = default_sigma
+
     K_f = L.dot(L.T)
 
     bold_y = np.reshape(Y_train.T, (N * M)).T
@@ -120,26 +132,40 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, p
     fig.savefig(fname=target_name)
 
 
-def optimize(x_train, Y_train, optimization_method, maxiter):
+def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimize_sigma, optimize_theta, default_L, default_sigma, default_theta):
     def log_iteration(current_params):
         global optimization_steps
         optimization_steps += 1
         print('Evaluated:', optimization_steps, current_params)
 
-    optimizee = functools.partial(neg_log_likelihood, x=x_train, Y_train=Y_train)
-    # assumptions: we have to learn the variance of the tasks (sigma_l_2)
-    N, M = Y_train.shape
-    K_x = multitask.utils.rbf_kernel1D(x_train, x_train)
-    K_x_inv = np.linalg.inv(K_x)
-    K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
-    K_f_init_inv = np.linalg.cholesky(K_f_init)
-    params0 = multitask.utils.pack_params(np.tril(K_f_init_inv), [1.0, 1.0], np.zeros(M))
+
+    L = None
+    theta = None
+    sigma_l_2 = None
+
+    if optimize_L:
+        L = default_L
+    if optimize_sigma:
+        sigma_l_2 = default_sigma
+    if optimize_theta:
+        theta = default_theta
 
     options = dict()
     if maxiter:
         options['maxiter'] = maxiter
 
-    result = scipy.optimize.minimize(optimizee, params0,
+    optimizee = functools.partial(neg_log_likelihood,
+                                  x=x_train, Y_train=Y_train,
+                                  optimize_L=optimize_L,
+                                  optimize_theta=optimize_theta,
+                                  optimize_sigma=optimize_sigma,
+                                  default_L=default_L,
+                                  default_theta=default_theta,
+                                  default_sigma=default_sigma)
+    params0 = multitask.utils.pack_params(L, theta, sigma_l_2)
+
+    result = scipy.optimize.minimize(optimizee,
+                                     params0,
                                      method=optimization_method,
                                      callback=log_iteration,
                                      options=options)
@@ -147,31 +173,70 @@ def optimize(x_train, Y_train, optimization_method, maxiter):
     return result
 
 
-def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cahce_directory):
+def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache, cahce_directory, optimize_L, optimize_theta, optimize_sigma, default_value_sigma, default_value_theta):
+    def unpack_result(result):
+        L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(result.x,
+                                                              M=M,
+                                                              include_L=optimize_L,
+                                                              include_theta=optimize_theta,
+                                                              include_sigma=optimize_sigma)
+        if optimize_L == (L is None):
+            raise ValueError()
+        if optimize_theta == (Theta_x is None):
+            raise ValueError()
+        if optimize_sigma == (sigma_l_2 is None):
+            raise ValueError()
+        if not optimize_theta:
+            Theta_x = default_theta
+        if not optimize_L:
+            L = default_L
+        if not optimize_sigma:
+            sigma_l_2 = default_sigma
+
+        return result, L.dot(L.T), np.array(Theta_x), np.array(sigma_l_2)
+
     if cahce_directory[-1] != '/':
         raise ValueError('Cache directory should have tailing slash')
 
     fn_hash = str(hash(tuple(x_train))) + '__' + \
               str(hash(tuple(map(tuple, Y_train)))) + '__' + \
               optimization_method + '__' + \
-              str(maxiter)
+              str(maxiter) + '__' + \
+              str(optimize_L) + '__' + \
+              str(optimize_theta) + '__' + \
+              str(optimize_sigma) + '__' + \
+              str(default_value_sigma) + '__' + \
+              str(default_value_theta)
     filepath = cahce_directory + fn_hash + '.pkl'
+
+    # caclualte defaults
+    N, M = Y_train.shape
+    K_x = multitask.utils.rbf_kernel1D(x_train, x_train)
+    K_x_inv = np.linalg.inv(K_x)
+    K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
+    K_f_init_inv = np.linalg.cholesky(K_f_init)
+    default_L = np.tril(K_f_init_inv)
+
+    default_sigma = np.array([default_value_sigma] * M)
+    default_theta = np.array([default_value_theta] * 2)
 
     if os.path.isfile(filepath) and use_cache:
         print('Optimization result obtained from cache..')
         with open(filepath, 'rb') as fp:
-            return pickle.load(fp)
+            return unpack_result(pickle.load(fp))
 
     try:
         os.mkdir(cahce_directory)
     except FileExistsError:
         pass
 
-    result = optimize(x_train, Y_train, optimization_method, maxiter)
+    result = optimize(x_train, Y_train, optimization_method, maxiter,
+                      optimize_L=optimize_L, optimize_theta=optimize_theta, optimize_sigma=optimize_sigma,
+                      default_L=default_L, default_sigma=default_sigma, default_theta=default_theta)
     if use_cache:
         with open(filepath, 'wb') as fp:
             pickle.dump(result, fp)
-    return result
+    return unpack_result(result)
 
 
 def run(args):
@@ -193,11 +258,27 @@ def run(args):
     Y_train = np.array([data[:, y_idx] for y_idx in y_indices]).T
     N, M = Y_train.shape
 
-    result = optimize_decorator(x_train, Y_train, args.optimization_method, args.maxiter, args.use_cache, args.cache_directory)
-    incumbent = result.x
-    L, Theta_x, sigma_l_2 = multitask.utils.unpack_params(incumbent, M, include_sigma=True, include_theta=True)
-    K_f = L.dot(L.T)
-    # TODO: why is K_f not equal to [[1]] when we use just one task (i.e., M=1, see email to Andreas on March 29)
+    result, K_f, Theta_x, sigma_l_2 = optimize_decorator(x_train, Y_train,
+                                                         args.optimization_method,
+                                                         args.maxiter,
+                                                         args.use_cache,
+                                                         args.cache_directory,
+                                                         optimize_L=args.optimize_L,
+                                                         optimize_sigma=args.optimize_sigma,
+                                                         optimize_theta=args.optimize_theta,
+                                                         default_value_sigma=args.default_value_sigma,
+                                                         default_value_theta=args.default_value_theta)
+    print('Theta_x', Theta_x)
+    print('sigma_l_2', sigma_l_2)
+
+    if K_f.shape != (M, M):
+        raise ValueError()
+
+    if Theta_x.shape != (2,):
+        raise ValueError('Theta_x wrong dimensions')
+
+    if sigma_l_2.shape != (M,):
+        raise ValueError('Sigma_l_2 wrong dimensions')
 
     for idx, y_column in enumerate(y_indices):
         current_target = dataset['attributes'][y_column][0]
