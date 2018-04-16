@@ -48,6 +48,16 @@ def compute_Sigma(x, M, K_f, sigma_l_2, Theta_x):
     return Sigma
 
 
+def compute_default_L(x_train, Y_train, Theta_x):
+    N, M = Y_train.shape
+    K_x = multitask.utils.rbf_kernel1D(x_train, x_train, Theta_x[0], Theta_x[1])
+    K_x_inv = np.linalg.inv(K_x)
+    K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
+    K_f_init_inv = np.linalg.cholesky(K_f_init)
+    default_L = np.tril(K_f_init_inv)
+    return default_L
+
+
 def do_inference(k_l_f, task_l, Sigma_inv, Theta_x, x, bold_y, x_star):
     if not isinstance(x_star, float):
         raise ValueError('x_star should be scalar, got: %s' %x_star)
@@ -220,16 +230,10 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache
     filepath = cahce_directory + fn_hash + '.pkl'
 
     # caclualte defaults
-    # TODO!!!!!! THIS ONE DEPENDS ON THETA_X
     N, M = Y_train.shape
-    K_x = multitask.utils.rbf_kernel1D(x_train, x_train, default_value_theta, default_value_theta)
-    K_x_inv = np.linalg.inv(K_x)
-    K_f_init = 1 / N * Y_train.T.dot(K_x_inv).dot(Y_train)
-    K_f_init_inv = np.linalg.cholesky(K_f_init)
-    default_L = np.tril(K_f_init_inv)
-
     default_sigma = np.array([default_value_sigma] * M)
     default_theta = np.array([default_value_theta] * 2)
+    default_L = compute_default_L(x_train, Y_train, default_theta)
 
     if os.path.isfile(filepath) and use_cache:
         print('Optimization result obtained from cache..')
