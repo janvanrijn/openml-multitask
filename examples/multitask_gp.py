@@ -106,7 +106,7 @@ def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optim
     return -1 * lml
 
 
-def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, param_name, target_name):
+def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, param_name, target_name, plot_directory):
     N, M = Y_train.shape
     bold_y = np.reshape(Y_train.T, (N * M)).T
     Sigma = compute_Sigma(x_train, M, K_f, sigma_l_2, Theta_x)
@@ -135,10 +135,11 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, p
     ax.plot(x_vals, predictions, 'r--', lw=2)
     ax.plot(x_train, Y_train[:, task_l], 'bs', ms=4)
     ax.set(xlabel=param_name, ylabel='predictive_accuracy',
-           title='Multi Task GP on OpenML Task %s; Theta = %s\nsigma = %s\n' %(task_l, Theta_x, sigma_l_2))
+           title='Multi Task GP on %s; Theta = %s\nsigma = %s\n' %(target_name, Theta_x, sigma_l_2))
 
     ax.set_ylim([0., 1.])
-    fig.savefig(fname=target_name)
+    output_file = os.path.join(plot_directory, target_name + '.png')
+    fig.savefig(fname=output_file)
 
 
 def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimize_sigma, optimize_theta, default_L, default_sigma, default_theta):
@@ -296,7 +297,7 @@ def run(args):
         print(current_target)
         plot_model(x_train, Y_train, idx, K_f, sigma_l_2, Theta_x,
                    plot_offset=3, param_name=dataset['attributes'][x_idx][0],
-                   target_name=args.plot_directory + current_target + '.png')
+                   target_name=current_target, plot_directory=args.plot_directory)
 
 
 if __name__ == '__main__':
