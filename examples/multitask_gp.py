@@ -83,7 +83,7 @@ def do_inference(k_l_f, task_l, Sigma_inv, Theta_x, x, bold_y, x_star):
     return f_l_bar, variance
 
 
-def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optimize_sigma, default_L, default_theta, default_sigma):
+def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optimize_sigma, default_theta, default_sigma):
     # this function is used by scipy.optimize.minimize(). Therefore, the
     # parameters to be optimized are wrapped in the single argument
     # 'parameters', which is an array of floats. Contains
@@ -94,12 +94,13 @@ def neg_log_likelihood(parameters, x, Y_train, optimize_L, optimize_theta, optim
                                                           include_sigma=optimize_sigma,
                                                           include_theta=optimize_theta,
                                                           include_L=optimize_L)
-    if L is None:
-        L = default_L
+
     if Theta_x is None:
         Theta_x = default_theta
     if sigma_l_2 is None:
         sigma_l_2 = default_sigma
+    if L is None:
+        L = compute_default_L(x, Y_train, Theta_x)
 
     K_f = L.dot(L.T)
 
@@ -152,7 +153,7 @@ def plot_model(x_train, Y_train, task_l, K_f, sigma_l_2, Theta_x, plot_offset, p
     fig.savefig(fname=output_file)
 
 
-def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimize_sigma, optimize_theta, default_L, default_sigma, default_theta):
+def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimize_sigma, optimize_theta, default_sigma, default_theta):
     def log_iteration(current_params):
         global optimization_steps
         optimization_steps += 1
@@ -162,12 +163,12 @@ def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimiz
     theta = None
     sigma_l_2 = None
 
-    if optimize_L:
-        L = default_L
     if optimize_sigma:
         sigma_l_2 = default_sigma
     if optimize_theta:
         theta = default_theta
+    if optimize_L:
+        L = compute_default_L(x_train, Y_train, default_theta)
 
     options = dict()
     if maxiter:
@@ -178,7 +179,6 @@ def optimize(x_train, Y_train, optimization_method, maxiter, optimize_L, optimiz
                                   optimize_L=optimize_L,
                                   optimize_theta=optimize_theta,
                                   optimize_sigma=optimize_sigma,
-                                  default_L=default_L,
                                   default_theta=default_theta,
                                   default_sigma=default_sigma)
     params0 = multitask.utils.pack_params(L, theta, sigma_l_2)
@@ -247,7 +247,7 @@ def optimize_decorator(x_train, Y_train, optimization_method, maxiter, use_cache
 
     result = optimize(x_train, Y_train, optimization_method, maxiter,
                       optimize_L=optimize_L, optimize_theta=optimize_theta, optimize_sigma=optimize_sigma,
-                      default_L=default_L, default_sigma=default_sigma, default_theta=default_theta)
+                      default_sigma=default_sigma, default_theta=default_theta)
     if use_cache:
         with open(filepath, 'wb') as fp:
             pickle.dump(result, fp)
