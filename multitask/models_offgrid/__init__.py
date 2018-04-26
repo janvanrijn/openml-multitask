@@ -1,3 +1,3 @@
 from .coregionalized import MetaCoregionalizedGPOffgrid
 from .randomforest import MetaRandomForestOffgrid
-from .singletask_gp import MetaGaussianProcessOffgrid
+from .singleoutput_gp import MetaSingleOutputGPOffgrid

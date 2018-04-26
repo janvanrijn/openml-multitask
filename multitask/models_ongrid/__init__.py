@@ -1,1 +1,3 @@
+from .multioutput_gp import MetaMultiOutputGPOngrid
 from .randomforest import MetaRandomForestOngrid
+from .sinlgeoutput_gp import MetaSingleOutputGPOngrid

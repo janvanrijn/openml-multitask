@@ -82,7 +82,7 @@ def run(args):
     models = [
         multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
-        multitask.models_offgrid.MetaGaussianProcessOffgrid()
+        multitask.models_offgrid.MetaSingleOutputGPOffgrid()
     ]
 
     results = dict()

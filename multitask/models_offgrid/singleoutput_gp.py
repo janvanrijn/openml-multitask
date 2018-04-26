@@ -1,11 +1,11 @@
 import GPy
 
 
-class MetaGaussianProcessOffgrid(object):
+class MetaSingleOutputGPOffgrid(object):
 
     def __init__(self):
         self.m = list()
-        self.name = 'Singletask GP'
+        self.name = 'SingleOutputGP'
 
     def fit(self, task_X_train, task_y_train):
         num_tasks, _, num_feats = task_X_train.shape

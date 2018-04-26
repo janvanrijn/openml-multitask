@@ -56,9 +56,9 @@ def run(args):
     Y_test = Y_values[test_indices, :]
 
     models = [
-        #multitask.models_ongrid.MetaCoregionalizedGPOngrid(),
+       # multitask.models_ongrid.MetaMultiOutputGPOngrid(),
         multitask.models_ongrid.MetaRandomForestOngrid(),
-        #multitask.models_ongrid.MetaGaussianProcessOngrid()
+        multitask.models_ongrid.MetaSingleOutputGPOngrid()
     ]
 
     results = dict()
