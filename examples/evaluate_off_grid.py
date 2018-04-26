@@ -12,10 +12,11 @@ from multitask.models.coregionalized import MetaCoregionalizedGPRegressor
 from multitask.models.randomforest import MetaRandomForestRegressor
 from multitask.models.singletask_gp import MetaGaussianProcessRegressor
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
-    parser.add_argument('--data_file', type=str, default='../data/openml-svm.arff')
+    parser.add_argument('--data_file', type=str, default='../data/svm-offgrid.arff')
     parser.add_argument('--task_id_column', type=str, default='task_id')
     parser.add_argument('--hyperparameters', type=str, nargs='+', default=None)
     parser.add_argument('--y_column', type=str, default='y')
