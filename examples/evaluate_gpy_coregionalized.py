@@ -80,7 +80,10 @@ def run(args):
     task_y_train = tasks_y_values[:, train_indices, :]
     task_y_test = tasks_y_values[:, test_indices, :]
 
-    models = [MetaCoregionalizedGPRegressor()] #, MetaRandomForestRegressor()]
+    models = [
+        MetaCoregionalizedGPRegressor(),
+        MetaRandomForestRegressor(),
+    ]
 
     for model in models:
         model.fit(task_X_train, task_y_train)
