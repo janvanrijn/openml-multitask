@@ -8,10 +8,6 @@ import pickle
 import scipy.stats
 import sklearn.metrics
 
-from multitask.models.coregionalized import MetaCoregionalizedGPRegressor
-from multitask.models.randomforest import MetaRandomForestRegressor
-from multitask.models.singletask_gp import MetaGaussianProcessRegressor
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
@@ -83,9 +79,9 @@ def run(args):
     task_y_test = tasks_y_values[:, test_indices, :]
 
     models = [
-        MetaCoregionalizedGPRegressor(),
-        MetaRandomForestRegressor(),
-        MetaGaussianProcessRegressor()
+        multitask.models_offgrid.MetaCoregionalizedGPRegressor(),
+        multitask.models_offgrid.MetaRandomForestRegressor(),
+        multitask.models_offgrid.MetaGaussianProcessRegressor()
     ]
 
     results = dict()
