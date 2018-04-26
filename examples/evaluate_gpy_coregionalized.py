@@ -1,19 +1,20 @@
-import pylab as pb
 import argparse
 import arff
-import collections
-import GPy
+import multitask
 import numpy as np
+import os
 import pandas as pd
+import pickle
 import scipy.stats
 import sklearn.metrics
 
 from multitask.models.coregionalized import MetaCoregionalizedGPRegressor
 from multitask.models.randomforest import MetaRandomForestRegressor
+from multitask.models.singletask_gp import MetaGaussianProcessRegressor
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
-    parser.add_argument('--plot_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
+    parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
     parser.add_argument('--data_file', type=str, default='../data/openml-svm.arff')
     parser.add_argument('--task_id_column', type=str, default='task_id')
     parser.add_argument('--hyperparameters', type=str, nargs='+', default=None)
@@ -83,9 +84,20 @@ def run(args):
     models = [
         MetaCoregionalizedGPRegressor(),
         MetaRandomForestRegressor(),
+        MetaGaussianProcessRegressor()
     ]
 
+    results = dict()
     for model in models:
+        filename = '%s.%d.pkl' % (model.name, args.num_tasks)
+        output_file = os.path.join(args.output_directory, filename)
+        if os.path.isfile(output_file):
+            print('Loaded %s from cache' %filename)
+            with open(output_file, 'rb') as fp:
+                results[model.name] = pickle.load(fp)
+            continue
+        print('Generating %s ' %filename)
+        results[model.name] = dict()
         model.fit(task_X_train, task_y_train)
 
         for idx, task_id in enumerate(tasks):
@@ -93,8 +105,20 @@ def run(args):
             mean_prediction = model.predict(task_X_test, idx)
             spearman = scipy.stats.pearsonr(mean_prediction, real_scores)[0]
             mse = sklearn.metrics.mean_squared_error(real_scores, mean_prediction)
-            print(model.name, spearman, mse)
+            results[model.name][task_id] = {'spearman': spearman, 'mse': mse}
+
+        try:
+            os.makedirs(args.output_directory)
+        except FileExistsError:
+            pass
+        with open(output_file, 'wb') as fp:
+            pickle.dump(results[model.name], fp)
+    return results
 
 
 if __name__ == '__main__':
-    run(parse_args())
+    results = run(parse_args())
+
+    for measure in ['spearman', 'mse']:
+        outputfile = os.path.join(parse_args().output_directory, measure + '.pdf')
+        multitask.plot.plot_boxplots(results, measure, outputfile)

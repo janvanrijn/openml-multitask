@@ -37,7 +37,7 @@ def plot(x_train, y_train, x, Theta_x, plot_directory, target_name, param_name, 
 
     ax.plot(x_train, y_train, 'bs', ms=4)
     ax.set(xlabel=param_name, ylabel='predictive_accuracy',
-           title='Single Task GP on %s Theta = %s' %(target_name, Theta_x) )
+           title='Single Task GP on %s Theta = %s' %(target_name, Theta_x))
 
     ax.set_xlim([x[0], x[-1]])
     ax.set_ylim([0., 1.])
