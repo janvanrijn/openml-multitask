@@ -5,7 +5,11 @@ import collections
 import GPy
 import numpy as np
 import pandas as pd
+import scipy.stats
+import sklearn.metrics
 
+from multitask.models.coregionalized import MetaCoregionalizedGPRegressor
+from multitask.models.randomforest import MetaRandomForestRegressor
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
@@ -15,7 +19,7 @@ def parse_args():
     parser.add_argument('--hyperparameters', type=str, nargs='+', default=None)
     parser.add_argument('--y_column', type=str, default='y')
     parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--num_tasks', type=int, default=5)
+    parser.add_argument('--num_tasks', type=int, default=20)
     parser.add_argument('--random_seed', type=int, default=42)
     return parser.parse_args()
 
@@ -76,21 +80,17 @@ def run(args):
     task_y_train = tasks_y_values[:, train_indices, :]
     task_y_test = tasks_y_values[:, test_indices, :]
 
-    # train the model
-    kernel = GPy.kern.Matern32(num_feats)
-    icm = GPy.util.multioutput.ICM(input_dim=num_feats, num_outputs=num_tasks, kernel=kernel)
-    m = GPy.models.GPCoregionalizedRegression(task_X_train, task_y_train, kernel=icm)
-    # For this kernel, B.kappa encodes the variance now.
-    m['.*Mat32.var'].constrain_fixed(1.)
-    m.optimize()
+    models = [MetaCoregionalizedGPRegressor()] #, MetaRandomForestRegressor()]
 
-    for idx, task_id in enumerate(tasks):
-        input_index = np.full(task_X_test[idx].shape, idx)
-        output_index = np.full((args.test_size, 1), idx)
-        extended = np.hstack((task_X_test[idx], input_index))
+    for model in models:
+        model.fit(task_X_train, task_y_train)
 
-        mean, variance = m.predict(extended, Y_metadata={'output_index': output_index})
-        print(task_id, mean.shape, variance.shape)
+        for idx, task_id in enumerate(tasks):
+            real_scores = task_y_test[idx].flatten()
+            mean_prediction = model.predict(task_X_test, idx)
+            spearman = scipy.stats.pearsonr(mean_prediction, real_scores)[0]
+            mse = sklearn.metrics.mean_squared_error(real_scores, mean_prediction)
+            print(model.name, spearman, mse)
 
 
 if __name__ == '__main__':
