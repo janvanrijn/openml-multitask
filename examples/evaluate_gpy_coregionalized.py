@@ -1,3 +1,4 @@
+import pylab as pb
 import argparse
 import arff
 import collections
@@ -11,6 +12,7 @@ def parse_args():
     parser.add_argument('--plot_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
     parser.add_argument('--data_file', type=str, default='../data/openml-svm.arff')
     parser.add_argument('--task_id_column', type=str, default='task_id')
+    parser.add_argument('--hyperparameters', type=str, nargs='+', default=None)
     parser.add_argument('--y_column', type=str, default='y')
     parser.add_argument('--test_size', type=int, default=100)
     parser.add_argument('--num_tasks', type=int, default=5)
@@ -22,16 +24,25 @@ def format_data(args):
     with open(args.data_file, 'r') as fp:
         dataset = arff.load(fp)
     column_names = [att[0] for att in dataset['attributes']]
-    hyperparameter_columns_names = [att[0] for att in dataset['attributes']]
-    hyperparameter_columns_names.remove(args.task_id_column)
-    hyperparameter_columns_names.remove(args.y_column)
+    # hyperparameter_columns_names = [att[0] for att in dataset['attributes']]
+    # hyperparameter_columns_names.remove(args.task_id_column)
+    # hyperparameter_columns_names.remove(args.y_column)
+    if args.hyperparameters is None:
+        legal_columns = [att[0] for att in dataset['attributes']]
+    else:
+        legal_columns = args.hyperparameters
+        legal_columns.append(args.y_column)
+        legal_columns.append(args.task_id_column)
 
     frame = pd.DataFrame(np.array(dataset['data']), columns=column_names)
     for column in frame:
-        try:
-            frame[column] = frame[column].astype(float)
-        except ValueError:
-            pass
+        if column in legal_columns:
+            try:
+                frame[column] = frame[column].astype(float)
+            except ValueError:
+                pass
+        else:
+            del frame[column]
     frame = pd.get_dummies(frame)
 
     all_tasks = getattr(frame, args.task_id_column).unique()
@@ -45,18 +56,15 @@ def format_data(args):
         tasks.append(int(task_id))
         current = frame.loc[frame[args.task_id_column] == task_id]
         del current[args.task_id_column]
-        print(current.columns.values)
-        tasks_y_values.append(current[args.y_column])
+        tasks_y_values.append(np.array(current[args.y_column]).reshape((-1, 1)))
         del current[args.y_column]
         tasks_X_values.append(current.as_matrix())
-
     return np.array(tasks_X_values, dtype=float), np.array(tasks_y_values, dtype=float), tasks
 
 
 def run(args):
     np.random.seed(args.random_seed)
     tasks_X_values, tasks_y_values, tasks = format_data(args)
-    print(tasks_X_values.shape)
     num_tasks, num_obs, num_feats = tasks_X_values.shape
 
     # make train and test sets
@@ -69,12 +77,13 @@ def run(args):
     task_y_test = tasks_y_values[:,test_indices]
 
     # train the model
-    kernel = GPy.kern.Matern32(1)
+    kernel = GPy.kern.Matern32(num_feats)
     icm = GPy.util.multioutput.ICM(input_dim=num_feats, num_outputs=num_tasks, kernel=kernel)
     m = GPy.models.GPCoregionalizedRegression(task_X_train, task_y_train, kernel=icm)
     # For this kernel, B.kappa encodes the variance now.
     m['.*Mat32.var'].constrain_fixed(1.)
     m.optimize()
+    print(m)
 
 
 if __name__ == '__main__':
