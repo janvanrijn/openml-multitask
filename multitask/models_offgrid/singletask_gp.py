@@ -1,7 +1,7 @@
 import GPy
 
 
-class MetaGaussianProcessRegressor(object):
+class MetaGaussianProcessOffgrid(object):
 
     def __init__(self):
         self.m = list()

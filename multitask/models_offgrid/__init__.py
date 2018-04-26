@@ -1,3 +1,3 @@
-from .coregionalized import MetaCoregionalizedGPRegressor
-from .randomforest import MetaRandomForestRegressor
-from .singletask_gp import MetaGaussianProcessRegressor
+from .coregionalized import MetaCoregionalizedGPOffgrid
+from .randomforest import MetaRandomForestOffgrid
+from .singletask_gp import MetaGaussianProcessOffgrid

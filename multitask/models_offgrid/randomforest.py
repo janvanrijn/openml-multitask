@@ -1,7 +1,7 @@
 import sklearn.ensemble
 
 
-class MetaRandomForestRegressor(object):
+class MetaRandomForestOffgrid(object):
 
     def __init__(self):
         self.m = list()

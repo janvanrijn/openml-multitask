@@ -68,6 +68,7 @@ def run(args):
     np.random.seed(args.random_seed)
     tasks_X_values, tasks_y_values, tasks = format_data(args)
     num_tasks, num_obs, num_feats = tasks_X_values.shape
+    # TODO: scale values per (2nd dimension)
 
     # make train and test sets
     test_indices = np.random.choice(num_obs, args.test_size, replace=False)
@@ -79,14 +80,14 @@ def run(args):
     task_y_test = tasks_y_values[:, test_indices, :]
 
     models = [
-        multitask.models_offgrid.MetaCoregionalizedGPRegressor(),
-        multitask.models_offgrid.MetaRandomForestRegressor(),
-        multitask.models_offgrid.MetaGaussianProcessRegressor()
+        multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
+        multitask.models_offgrid.MetaRandomForestOffgrid(),
+        multitask.models_offgrid.MetaGaussianProcessOffgrid()
     ]
 
     results = dict()
     for model in models:
-        filename = '%s.%d.pkl' % (model.name, args.num_tasks)
+        filename = 'offgrid.%s.%d.pkl' % (model.name, num_tasks)
         output_file = os.path.join(args.output_directory, filename)
         if os.path.isfile(output_file):
             print('Loaded %s from cache' %filename)
@@ -117,5 +118,5 @@ if __name__ == '__main__':
     results = run(parse_args())
 
     for measure in ['spearman', 'mse']:
-        outputfile = os.path.join(parse_args().output_directory, measure + '.pdf')
+        outputfile = os.path.join(parse_args().output_directory, 'offgrid-%s.pdf' %measure)
         multitask.plot.plot_boxplots(results, measure, outputfile)

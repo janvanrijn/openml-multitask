@@ -2,7 +2,7 @@ import GPy
 import numpy as np
 
 
-class MetaCoregionalizedGPRegressor(object):
+class MetaCoregionalizedGPOffgrid(object):
 
     def __init__(self):
         self.name = 'CoregionalizedGP'
