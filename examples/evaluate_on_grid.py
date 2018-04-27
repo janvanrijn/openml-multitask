@@ -15,8 +15,9 @@ def parse_args():
     parser.add_argument('--data_file', type=str, default='../data/svm-ongrid.arff')
     parser.add_argument('--x_column_names', type=str, nargs='+',
                         default=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree'])
+    parser.add_argument('--y_prefix', type=str, default='y-on-')
     parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--max_tasks', type=int, default=20)
+    parser.add_argument('--max_tasks', type=int, default=10)
     parser.add_argument('--random_seed', type=int, default=42)
     return parser.parse_args()
 
@@ -30,13 +31,14 @@ def format_data(args):
         if column in args.x_column_names:
             x_indices.append(idx)
         elif args.max_tasks is None or len(y_indices) < args.max_tasks:
-            y_indices.append(idx)
+            if column.startswith(args.y_prefix):
+                y_indices.append(idx)
 
     if len(x_indices) != len(args.x_column_names):
         raise ValueError('Couldn\'t find all hyperparameter columns: ')
 
     data = np.array(dataset['data'])
-    return np.array(data[:, x_indices]), np.array(data[:, y_indices])
+    return np.array(data[:, x_indices], dtype=float), np.array(data[:, y_indices], dtype=float)
 
 
 def run(args):
@@ -56,7 +58,7 @@ def run(args):
     Y_test = Y_values[test_indices, :]
 
     models = [
-       # multitask.models_ongrid.MetaMultiOutputGPOngrid(),
+        multitask.models_ongrid.MetaMultiOutputGPOngrid(),
         multitask.models_ongrid.MetaRandomForestOngrid(),
         multitask.models_ongrid.MetaSingleOutputGPOngrid()
     ]
