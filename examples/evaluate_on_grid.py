@@ -17,7 +17,7 @@ def parse_args():
                         default=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree'])
     parser.add_argument('--y_prefix', type=str, default='y-on-')
     parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--max_tasks', type=int, default=10)
+    parser.add_argument('--max_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
     return parser.parse_args()
 

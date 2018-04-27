@@ -11,7 +11,7 @@ def parse_args():
     parser.add_argument('--directory', type=str, default='../data/svm_on_mnist_grid')
     parser.add_argument('--n_estimators', type=int, default=128)
     parser.add_argument('--random_state', type=int, default=42)
-    parser.add_argument('--log', action='store_true', default=True)
+    parser.add_argument('--log', action='store_true', default=False)
 
     return parser.parse_args()
 

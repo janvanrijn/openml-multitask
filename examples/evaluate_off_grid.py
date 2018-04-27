@@ -15,9 +15,10 @@ def parse_args():
     parser.add_argument('--data_file', type=str, default='../data/svm-offgrid.arff')
     parser.add_argument('--task_id_column', type=str, default='task_id')
     parser.add_argument('--hyperparameters', type=str, nargs='+', default=None)
+    parser.add_argument('--log_columns', type=str, nargs='+', default=['C', 'gamma', 'tol'])
     parser.add_argument('--y_column', type=str, default='y')
     parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--num_tasks', type=int, default=20)
+    parser.add_argument('--num_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
     return parser.parse_args()
 
@@ -41,6 +42,10 @@ def format_data(args):
         if column in legal_columns:
             try:
                 frame[column] = frame[column].astype(float)
+                # TODO: very important to model logscale parameters on the log scale
+                if column in args.log_columns:
+                    frame[column] = np.log(frame[column])
+
             except ValueError:
                 pass
         else:
@@ -68,7 +73,6 @@ def run(args):
     np.random.seed(args.random_seed)
     tasks_X_values, tasks_y_values, tasks = format_data(args)
     num_tasks, num_obs, num_feats = tasks_X_values.shape
-    # TODO: scale values per (2nd dimension)
 
     # make train and test sets
     test_indices = np.random.choice(num_obs, args.test_size, replace=False)
