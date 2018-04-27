@@ -123,4 +123,4 @@ if __name__ == '__main__':
 
     for measure in ['spearman', 'mse']:
         outputfile = os.path.join(parse_args().output_directory, 'offgrid-%s.pdf' %measure)
-        multitask.plot.plot_boxplots(results, measure, outputfile)
+        multitask.plot.plot_boxplots(results, measure, measure + ' off grid', outputfile)

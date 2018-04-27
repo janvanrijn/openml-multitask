@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 
 
-def plot_boxplots(results_dict, measure, output_file):
+def plot_boxplots(results_dict, measure, title, output_file):
     fig, ax = plt.subplots(1, 1)
 
     labels = []
@@ -17,7 +17,7 @@ def plot_boxplots(results_dict, measure, output_file):
     # basic plot
     ax.boxplot(series)
     ax.set_xticklabels(labels, rotation=45, ha='right')
-    ax.set_title(measure)
+    ax.set_title(title)
 
     plt.tight_layout()
     plt.savefig(output_file)
