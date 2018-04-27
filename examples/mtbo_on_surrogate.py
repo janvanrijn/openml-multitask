@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 from robo.fmin import mtbo
 
-from hpolib.benchmarks.ml.surrogate_svm import SurrogateSVM
+from multitask.imports.surrogate_svm import SurrogateSVM
 
 
 def parse_args():
@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--run_id', type=int, default=1)
     parser.add_argument('--random_state', type=int, default=42)
     parser.add_argument('--dataset_divider', type=int, default=16)
+    parser.add_argument('--num_iterations', type=int, default=20)
 
     return parser.parse_args()
 
@@ -31,7 +32,6 @@ def run(args):
     rng = np.random.RandomState(seed)
 
     f = SurrogateSVM(path=args.surrogate_directory, rng=rng)
-    num_iterations = 80
 
     os.makedirs(args.output_directory, exist_ok=True)
 
@@ -48,7 +48,7 @@ def run(args):
     bounds = np.array(info['bounds'])
     results = mtbo(objective_function=objective,
                    lower=bounds[:, 0], upper=bounds[:, 1],
-                   n_init=5, num_iterations=num_iterations, n_hypers=50,
+                   n_init=5, num_iterations=args.num_iterations, n_hypers=50,
                    rng=rng, output_path=args.output_directory, inc_estimation="last_seen")
 
     results["run_id"] = run_id
