@@ -7,7 +7,7 @@ import sklearn.ensemble
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
+    parser = argparse.ArgumentParser(description='Creates surrogate models (Random Forest) needed for mtbo benchmark')
     parser.add_argument('--directory', type=str, default='../data/svm_on_mnist_grid')
     parser.add_argument('--n_estimators', type=int, default=128)
     parser.add_argument('--random_state', type=int, default=42)
