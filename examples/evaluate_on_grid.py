@@ -12,35 +12,12 @@ import sklearn.metrics
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
-    parser.add_argument('--data_file', type=str, default='../data/svm-ongrid.arff')
-    parser.add_argument('--x_column_names', type=str, nargs='+',
-                        default=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree'])
     parser.add_argument('--y_prefix', type=str, default='y-on-')
     parser.add_argument('--test_size', type=int, default=150)
     parser.add_argument('--max_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
     return parser.parse_args()
-
-
-def format_data(args):
-    with open(args.data_file, 'r') as fp:
-        dataset = arff.load(fp)
-    x_indices = list()
-    y_indices = list()
-    for idx, (column, type) in enumerate(dataset['attributes']):
-        if column in args.x_column_names:
-            x_indices.append(idx)
-        elif args.max_tasks is None or len(y_indices) < args.max_tasks:
-            if column.startswith(args.y_prefix):
-                y_indices.append(idx)
-
-    if len(x_indices) != len(args.x_column_names):
-        raise ValueError('Couldn\'t find all hyperparameter columns: ')
-
-    data = np.array(dataset['data'])
-    return np.array(data[:, x_indices], dtype=float), np.array(data[:, y_indices], dtype=float)
-
 
 def run(args):
     np.random.seed(args.random_seed)

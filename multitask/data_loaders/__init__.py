@@ -1,1 +1,2 @@
 from .openml_libsvm import OpenMLLibSVMDataLoader
+from .wistuba_libsvm import WistubaLibSVMDataLoader

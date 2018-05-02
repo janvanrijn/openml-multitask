@@ -5,6 +5,8 @@ import pandas as pd
 
 class OpenMLLibSVMDataLoader(object):
 
+    name = 'OpenMLLibSVM'
+
     @staticmethod
     def load_data(data_file='../data/svm-offgrid.arff', num_tasks=None, task_id_column='task_id',
                   y_column='y', hyperparameters=None, log_columns=['C', 'gamma', 'tol']):
