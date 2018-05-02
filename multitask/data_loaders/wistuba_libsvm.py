@@ -1,5 +1,6 @@
 import arff
 import numpy as np
+import pandas as pd
 
 
 class WistubaLibSVMDataLoader(object):
@@ -10,21 +11,23 @@ class WistubaLibSVMDataLoader(object):
     def load_data_raw(data_file='../data/svm-ongrid.arff', num_tasks=None, y_prefix='y-on-',
                     x_column_names=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree']):
         with open(data_file, 'r') as fp:
-            dataset = arff.load(fp)
-        x_indices = list()
-        y_indices = list()
-        for idx, (column, type) in enumerate(dataset['attributes']):
-            if column in x_column_names:
-                x_indices.append(idx)
-            elif num_tasks is None or len(y_indices) < num_tasks:
-                if column.startswith(y_prefix):
-                    y_indices.append(idx)
+            arff_dataset = arff.load(fp)
+        frame = pd.DataFrame(data=arff_dataset['data'],
+                             columns=[name for name, datatype in arff_dataset['attributes']],
+                             dtype=float)
+
+        x_indices = [idx for idx, col in enumerate(frame.columns) if col in x_column_names]
+        y_indices = [idx for idx, col in enumerate(frame.columns) if col.startswith(y_prefix)]
+        if num_tasks is not None:
+            if len(y_indices) < num_tasks:
+                raise ValueError('Not enough tasks .. ')
+            y_indices = y_indices[0:num_tasks]
 
         if len(x_indices) != len(x_column_names):
-            raise ValueError('Couldn\'t find all hyperparameter columns: ')
+            raise ValueError('Could not find all hyperparameter columns, expectec %d got %d' % (len(x_column_names),
+                                                                                                len(x_indices)))
 
-        data = np.array(dataset['data'])
-        return np.array(data[:, x_indices], dtype=float), np.array(data[:, y_indices], dtype=float)
+        return frame.as_matrix()[:, x_indices], frame.as_matrix()[:, y_indices]
 
     @staticmethod
     def load_data(num_tasks=None):

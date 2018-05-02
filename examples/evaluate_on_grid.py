@@ -14,14 +14,14 @@ def parse_args():
     parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
     parser.add_argument('--y_prefix', type=str, default='y-on-')
     parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--max_tasks', type=int, default=25)
+    parser.add_argument('--num_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
     return parser.parse_args()
 
 def run(args):
     np.random.seed(args.random_seed)
-    X_values, Y_values = format_data(args)
+    X_values, Y_values = multitask.data_loaders.WistubaLibSVMDataLoader.load_data_raw(num_tasks=args.num_tasks)
     num_obs, num_feats = X_values.shape
     _, num_tasks = Y_values.shape
     # TODO: scale values?
