@@ -14,7 +14,8 @@ class MetaCoregionalizedGPOffgrid(object):
         X_train = np.reshape(task_X_train, (num_tasks * num_obs, num_feats))
         Y_train = np.reshape(task_y_train, (num_tasks * num_obs, 1))
 
-        kern = GPy.kern.RBF(input_dim=num_feats-1, ARD=True) ** GPy.kern.Coregionalize(input_dim=1, output_dim=num_tasks, rank=1)
+        kern = GPy.kern.RBF(input_dim=num_feats-1, ARD=True) ** \
+               GPy.kern.Coregionalize(input_dim=1, output_dim=num_tasks, rank=1)
         self.m = GPy.models.GPRegression(X_train, Y_train, kern)
         self.m.optimize()
 
