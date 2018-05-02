@@ -1,0 +1,8 @@
+Cython==0.25.2
+liac-arff==2.1.1
+matplotlib==2.0.2
+numpy==1.13.3
+openml
+pandas
+scikit-learn==0.18.1
+scipy==0.19.1
