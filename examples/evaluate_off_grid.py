@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--log_columns', type=str, nargs='+', default=['C', 'gamma', 'tol'])
     parser.add_argument('--y_column', type=str, default='y')
     parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--num_tasks', type=int, default=5)
+    parser.add_argument('--num_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
     parser.add_argument('--use_cache', action='store_true', default=False)
@@ -99,6 +99,7 @@ def run(args):
 
     models = [
         multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
+        multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
         multitask.models_offgrid.MetaSingleOutputGPOffgrid()
     ]

@@ -4,7 +4,7 @@ import sklearn.ensemble
 class MetaRandomForestOffgrid(object):
 
     def __init__(self):
-        self.m = list()
+        self.models = list()
         self.name = 'RandomForest'
 
     def fit(self, task_X_train, task_y_train):
@@ -12,7 +12,7 @@ class MetaRandomForestOffgrid(object):
         for idx in range(num_tasks):
             current = sklearn.ensemble.RandomForestRegressor(n_estimators=64)
             current.fit(task_X_train[idx], task_y_train[idx].flatten())
-            self.m.append(current)
+            self.models.append(current)
 
     def predict(self, task_X_test, idx):
-        return self.m[idx].predict(task_X_test[idx])
+        return self.models[idx].predict(task_X_test[idx])

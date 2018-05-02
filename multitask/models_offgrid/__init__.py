@@ -1,3 +1,4 @@
 from .coregionalized_gp import MetaCoregionalizedGPOffgrid
+from .coregionalized_rf import MetaCoregionalizedRFOffgrid
 from .randomforest import MetaRandomForestOffgrid
 from .singleoutput_gp import MetaSingleOutputGPOffgrid
