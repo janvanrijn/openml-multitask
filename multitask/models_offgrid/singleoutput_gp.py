@@ -1,5 +1,5 @@
 import GPy
-
+import numpy as np
 
 class MetaSingleOutputGPOffgrid(object):
 
@@ -8,10 +8,12 @@ class MetaSingleOutputGPOffgrid(object):
         self.name = 'SingleOutputGP'
 
     def fit(self, task_X_train, task_y_train):
-        num_tasks, _, num_feats = task_X_train.shape
+        num_tasks, num_obs, num_feats = task_X_train.shape
         for idx in range(num_tasks):
-            kernel = GPy.kern.RBF(input_dim=num_feats, variance=1., lengthscale=1.)
-            current = GPy.models.GPRegression(task_X_train[idx], task_y_train[idx], kernel)
+
+            y_train = np.reshape(task_y_train[idx], (num_obs, 1))
+            kernel = GPy.kern.RBF(input_dim=num_feats, ARD=True)
+            current = GPy.models.GPRegression(task_X_train[idx], y_train, kernel)
             current.optimize()
             self.m.append(current)
 

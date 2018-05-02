@@ -19,6 +19,7 @@ def parse_args():
     parser.add_argument('--test_size', type=int, default=150)
     parser.add_argument('--max_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
+    parser.add_argument('--extension', type=str, default='png')
     return parser.parse_args()
 
 
@@ -96,5 +97,5 @@ if __name__ == '__main__':
     results = run(parse_args())
 
     for measure in ['spearman', 'mse']:
-        outputfile = os.path.join(parse_args().output_directory, 'ongrid-%s.pdf' %measure)
+        outputfile = os.path.join(parse_args().output_directory, 'ongrid-%s.%s' %(measure, parse_args().extension))
         multitask.plot.plot_boxplots(results, measure, measure + ' on grid', outputfile)
