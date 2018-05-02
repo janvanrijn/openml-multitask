@@ -10,12 +10,12 @@ import sklearn.metrics
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
     parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
-    parser.add_argument('--data_loader', type=str, default='WistubaLibSVMDataLoader')
-    parser.add_argument('--test_size', type=int, default=150)
-    parser.add_argument('--num_tasks', type=int, default=40)
+    parser.add_argument('--data_loader', type=str, default='OpenMLLibSVMDataLoader')
+    parser.add_argument('--train_size', type=int, default=100)
+    parser.add_argument('--num_tasks', type=int, default=50)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
-    parser.add_argument('--use_cache', action='store_true', default=False)
+    parser.add_argument('--use_cache', action='store_true', default=True)
     return parser.parse_args()
 
 
@@ -26,8 +26,8 @@ def benchmark(args, data_loader):
     num_tasks, num_obs, num_feats = tasks_X_values.shape
 
     # make train and test sets
-    test_indices = np.random.choice(num_obs, args.test_size, replace=False)
-    train_indices= np.array(list(set(range(num_obs)) - set(test_indices)))
+    train_indices = np.random.choice(num_obs, args.train_size, replace=False)
+    test_indices= np.array(list(set(range(num_obs)) - set(train_indices)))
 
     task_X_train = tasks_X_values[:, train_indices, :]
     task_X_test = tasks_X_values[:, test_indices, :]
@@ -45,7 +45,8 @@ def benchmark(args, data_loader):
 
     results = dict()
     for model in models:
-        filename = '%s.%s.%d.pkl' % (data_loader.name, model.name, num_tasks)
+        # s = random_seed, n = num tasks, tr = train instances per task
+        filename = '%s.%s.s%d.n%d.tr%d.pkl' % (data_loader.name, model.name, args.random_seed, num_tasks, args.train_size)
         output_file = os.path.join(args.output_directory, filename)
         if os.path.isfile(output_file) and args.use_cache:
             print(multitask.utils.get_time(), 'Loaded %s from cache' %filename)
@@ -80,10 +81,13 @@ def run(args):
 
     results = benchmark(args, data_loader)
     for measure in ['spearman', 'mse']:
-        output_file_path = os.path.join(args.output_directory, '%s-%d-%s.%s' % (data_loader.name,
-                                                                                parse_args().num_tasks,
-                                                                                measure,
-                                                                                args.extension))
+        # s = random_seed, n = num tasks, tr = train instances per task
+        output_file_path = os.path.join(args.output_directory, '%s.s%d.n%d.tr%d.%s.%s' % (data_loader.name,
+                                                                                          args.random_seed,
+                                                                                          args.num_tasks,
+                                                                                          args.train_size,
+                                                                                          measure,
+                                                                                          args.extension))
         multitask.plot.plot_boxplots(results, measure, measure + ' off grid', output_file_path)
 
 
