@@ -9,7 +9,7 @@ class OpenMLLibSVMDataLoader(object):
 
     @staticmethod
     def load_data(data_file='../data/svm-offgrid.arff', num_tasks=None, task_id_column='task_id',
-                  y_column='y', hyperparameters=None, log_columns=['C', 'gamma', 'tol']):
+                  y_column='y', hyperparameters=None, log_columns=['C', 'gamma', 'tol'], per_task_limit=None):
         with open(data_file, 'r') as fp:
             dataset = arff.load(fp)
         column_names = [att[0] for att in dataset['attributes']]
@@ -59,6 +59,8 @@ class OpenMLLibSVMDataLoader(object):
             if num_tasks is not None and idx >= num_tasks:
                 break
             current = frame.loc[frame[task_id_column] == idx]
+            if per_task_limit is not None:
+                current = current.head(per_task_limit)
             y_vals = np.array(current[y_column], dtype=float)
 
             tasks_y_values.append(y_vals)

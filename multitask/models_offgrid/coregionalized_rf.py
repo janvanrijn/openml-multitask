@@ -28,7 +28,7 @@ class MetaCoregionalizedRFOffgrid(object):
             ('hotencoding', sklearn.preprocessing.OneHotEncoder(categorical_features=[num_feats-1])),  # last feature indicates task
             ('classifier', sklearn.ensemble.RandomForestRegressor(n_estimators=64))
         ])
-        self.model.fit(X_train, y_train)
+        self.model.fit(X_train, y_train.flatten())
 
     def predict(self, task_X_test):
         return self.model.predict(task_X_test)

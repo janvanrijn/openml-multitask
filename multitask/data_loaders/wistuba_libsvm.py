@@ -35,10 +35,12 @@ class WistubaLibSVMDataLoader(object):
     @staticmethod
     def load_data_raw(data_file='../data/svm-ongrid.arff', num_tasks=None, y_prefix='y-on-',
                       x_column_names=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree'],
-                      filter_fn=None):
+                      per_task_limit=None, filter_fn=None):
         frame = WistubaLibSVMDataLoader._datafile_to_dataframe(data_file)
         if filter_fn is not None:
             frame = filter_fn(frame)
+        if per_task_limit is not None:
+            frame = frame.head(per_task_limit)
 
         x_indices = [idx for idx, col in enumerate(frame.columns) if col in x_column_names]
         y_indices = [idx for idx, col in enumerate(frame.columns) if col.startswith(y_prefix)]

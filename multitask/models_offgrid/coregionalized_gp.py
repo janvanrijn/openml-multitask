@@ -20,8 +20,6 @@ class MetaCoregionalizedGPOffgrid(object):
         :param task_y_train: a nd array of the shape (n_obs, 1)
         """
         num_tasks = len(np.unique(X_train[:, -1]))
-        print(X_train.shape)
-        print(y_train.shape)
         num_obs, num_feats = X_train.shape
         assert y_train.shape == (num_obs, 1)
 
