@@ -8,22 +8,40 @@ class MetaCoregionalizedGPOffgrid(object):
         self.name = 'CoregionalizedGP'
         self.model = None
 
-    def fit(self, task_X_train, task_y_train):
-        num_tasks, num_obs, num_feats = task_X_train.shape
+    def get_name(self, num_tasks, num_obs):
+        return '%s.%d.%d' % (self.name, num_tasks, num_obs)
 
-        X_train = np.reshape(task_X_train, (num_tasks * num_obs, num_feats))
-        Y_train = np.reshape(task_y_train, (num_tasks * num_obs, 1))
+    def fit(self, X_train, y_train):
+        """
+        Trains the model
+
+        :param task_X_train: a nd array with shape (n_obs, n_feats + 1),
+        where the last feature column indicates the task
+        :param task_y_train: a nd array of the shape (n_obs, 1)
+        """
+        num_tasks = len(np.unique(X_train[:, -1]))
+        print(X_train.shape)
+        print(y_train.shape)
+        num_obs, num_feats = X_train.shape
+        assert y_train.shape == (num_obs, 1)
 
         kern = GPy.kern.RBF(input_dim=num_feats-1, ARD=True) ** \
                GPy.kern.Coregionalize(input_dim=1, output_dim=num_tasks, rank=1)
-        self.model = GPy.models.GPRegression(X_train, Y_train, kern)
+        self.model = GPy.models.GPRegression(X_train, y_train, kern)
         self.model.optimize()
 
-    def predict(self, task_X_test, idx):
-        _, num_observations, _ = task_X_test.shape
-        output_index = np.full((num_observations, 1), idx)
+    def predict(self, X_test):
+        """
+        Predicts for new tasks
 
-        mean, variance = self.model.predict(task_X_test[idx], Y_metadata=output_index)
+        :param task_X_test: a nd array with shape (n_obs, n_feats + 1),
+        where the last feature column indicates the task
+        :return:
+        """
+        num_obs, _ = X_test.shape
+        output_index = X_test[:, -1]
+
+        mean, variance = self.model.predict(X_test, Y_metadata=output_index)
         return mean.flatten()
 
     def plot(self, idx, axes):
