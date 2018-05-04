@@ -27,4 +27,4 @@ class MetaCoregionalizedGPOffgrid(object):
         return mean.flatten()
 
     def plot(self, idx, axes):
-        self.models.plot(ax=axes, fixed_inputs=[(1, idx)], plot_data=False)
+        self.model.plot(ax=axes, fixed_inputs=[(1, idx)], plot_data=False)

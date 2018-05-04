@@ -1,12 +1,10 @@
 import argparse
-import itertools
+import collections
 import matplotlib.pyplot as plt
 import multitask
 import numpy as np
 import os
-import pickle
 import scipy.stats
-import sklearn.metrics
 
 
 def parse_args():
@@ -54,6 +52,8 @@ def remove_range_and_fit(tasks_X_values, tasks_y_values, train_size, output_dire
     models = [multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
               multitask.models_offgrid.MetaSingleOutputGPOffgrid()]
 
+    correlations = collections.defaultdict(list)
+
     for model in models:
         print(multitask.utils.get_time(), 'Start fitting', model.name)
         model.fit(tasks_X_tr, tasks_y_tr)
@@ -75,13 +75,14 @@ def remove_range_and_fit(tasks_X_values, tasks_y_values, train_size, output_dire
         for model_idx, model in enumerate(models):
             real_scores = tasks_y_te[idx].flatten()
             mean_prediction = model.predict(tasks_X_te, region)
-
             spearman = scipy.stats.pearsonr(mean_prediction, real_scores)[0]
+            correlations[model.name].append(spearman)
+            
+            model.plot(region, ax[model_idx])
 
             ax[model_idx].set_title('%s [%0.2f]' %(model.name, spearman))
-            ax[model_idx].set_xbound(-1, 1)
-            ax[model_idx].set_ybound(0, 1)
-            model.plot(region, ax[model_idx])
+            ax[model_idx].set_xlim(-1, 1)
+            ax[model_idx].set_ylim(0, 1)
 
             ax[model_idx].plot(tasks_X_tr[region, :, 0], tasks_y_tr[region], 'o')
             ax[model_idx].plot(tasks_X_te[region, :, 0], tasks_y_te[region], 'o')
@@ -91,8 +92,14 @@ def remove_range_and_fit(tasks_X_values, tasks_y_values, train_size, output_dire
         plt.savefig(output_file)
         plt.close()
 
+    for model, scores in correlations.items():
+        print(model, np.mean(scores), 'spearman correlation')
+
 
 def run(args):
+    np.random.seed(args.random_seed)
+    #np.seterr(all='raise')
+
     tasks_X_values, tasks_y_values = multitask.data_loaders.WistubaLibSVMDataLoader.load_data_rbf_fixed_complexity()
     os.makedirs(args.output_directory, exist_ok=True)
     output_file = os.path.join(args.output_directory, 'parameter-sweep.%s' % args.extension)
