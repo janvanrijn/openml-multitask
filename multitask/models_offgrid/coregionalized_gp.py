@@ -25,3 +25,6 @@ class MetaCoregionalizedGPOffgrid(object):
 
         mean, variance = self.model.predict(task_X_test[idx], Y_metadata=output_index)
         return mean.flatten()
+
+    def plot(self, idx, axes):
+        self.models.plot(ax=axes, fixed_inputs=[(1, idx)], plot_data=False)

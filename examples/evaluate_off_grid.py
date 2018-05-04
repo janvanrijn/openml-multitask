@@ -12,7 +12,7 @@ def parse_args():
     parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
     parser.add_argument('--data_loader', type=str, default='OpenMLLibSVMDataLoader')
     parser.add_argument('--train_size', type=int, default=100)
-    parser.add_argument('--num_tasks', type=int, default=50)
+    parser.add_argument('--num_tasks', type=int, default=None)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
     parser.add_argument('--use_cache', action='store_true', default=True)

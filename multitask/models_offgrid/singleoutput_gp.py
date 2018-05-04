@@ -20,3 +20,6 @@ class MetaSingleOutputGPOffgrid(object):
     def predict(self, task_X_test, idx):
         mean, variance = self.models[idx].predict(task_X_test[idx])
         return mean.flatten()
+
+    def plot(self, idx, axes):
+        self.models[idx].plot(ax=axes, fixed_inputs=[(1, idx)], plot_data=False)
