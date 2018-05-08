@@ -10,12 +10,12 @@ import sklearn.metrics
 def parse_args():
     parser = argparse.ArgumentParser(description='Runs a set of models on a holdout set across tasks')
     parser.add_argument('--output_directory', type=str, default=os.path.expanduser('~') + '/experiments/multitask/')
-    parser.add_argument('--data_loader', type=str, default='OpenMLLibSVMDataLoader')
+    parser.add_argument('--data_loader', type=str, default='WistubaLibSVMDataLoader')
     parser.add_argument('--train_size_current_task', type=int, default=10)
     parser.add_argument('--train_size_other_tasks', type=int, default=100)
-    parser.add_argument('--num_tasks', type=int, default=20)
+    parser.add_argument('--num_tasks', type=int, default=25)
     parser.add_argument('--random_seed', type=int, default=42)
-    parser.add_argument('--use_cache', action='store_true', default=False)
+    parser.add_argument('--use_cache', action='store_true', default=True)
     return parser.parse_args()
 
 
@@ -43,7 +43,6 @@ def run_model_on_task(args, data_loader, model, task_idx, X_tr, y_tr, X_te):
     with open(output_file, 'rb') as fp:
         current_model = pickle.load(fp)
 
-    current_model.fit(X_tr, y_tr)
     return current_model.predict(X_te)
 
 
@@ -84,10 +83,30 @@ def run_on_task(args, task_idx):
     ]
 
     for model in models:
-        real_scores = y_te.flatten()
-        predictions = run_model_on_task(args, data_loader, model, task_idx, X_tr, y_tr, X_te)
-        spearman = scipy.stats.spearmanr(real_scores, predictions)[0]
-        print('spearman correlation', spearman)
+        model_fullname = model.get_name(args.num_tasks, args.train_size_other_tasks)
+        cache_directory = os.path.join(args.output_directory,
+                                       data_loader.name,
+                                       str(args.train_size_current_task),
+                                       model_fullname,
+                                       str(task_idx),
+                                       str(args.random_seed))
+        results_file = os.path.join(cache_directory, 'measures.pkl')
+
+        if os.path.isfile(results_file):
+            with open(results_file, 'rb') as fp:
+                print(multitask.utils.get_time(), 'Loaded results from cache')
+                results = pickle.load(fp)
+        else:
+            print(multitask.utils.get_time(), 'Generating results')
+            real_scores = y_te.flatten()
+            predictions = run_model_on_task(args, data_loader, model, task_idx, X_tr, y_tr, X_te)
+            spearman = scipy.stats.spearmanr(real_scores, predictions)[0]
+            mse = sklearn.metrics.mean_squared_error(real_scores, predictions)
+            results = {'spearman': spearman, 'mse': mse}
+            with open(results_file, 'wb') as fp:
+                pickle.dump(results, fp)
+
+        print(multitask.utils.get_time(), results)
 
 
 def run(args):

@@ -56,8 +56,9 @@ class WistubaLibSVMDataLoader(object):
         return frame.as_matrix()[:, x_indices], frame.as_matrix()[:, y_indices]
 
     @staticmethod
-    def load_data(num_tasks=None):
-        raw_X_data, raw_Y_data = WistubaLibSVMDataLoader.load_data_raw(num_tasks=num_tasks)
+    def load_data(num_tasks=None, per_task_limit=None):
+        raw_X_data, raw_Y_data = WistubaLibSVMDataLoader.load_data_raw(num_tasks=num_tasks,
+                                                                       per_task_limit=per_task_limit)
         return WistubaLibSVMDataLoader._stack_per_task_data(raw_X_data, raw_Y_data)
 
     @staticmethod
