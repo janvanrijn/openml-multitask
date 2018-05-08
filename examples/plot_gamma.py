@@ -17,6 +17,10 @@ def parse_args():
 
 
 def plot_original_performance(tasks_X_values, tasks_y_values, output_file):
+    """
+    tasks_X_values is of shape (num_tasks, num_observations, num_features)
+    task_y_values is of shape (num_tasks, num_observations)
+    """
     marks = [',', '+', '.', 'o', '*']
     fig, axes = plt.subplots(1, 1)
     axes.set_title('Parameter Sweep')
@@ -49,6 +53,10 @@ def remove_range_and_fit(tasks_X_values, tasks_y_values, train_size, output_dire
         tasks_X_te[idx] = tasks_X_values[idx, te_indices]
         tasks_y_te[idx] = tasks_y_values[idx, te_indices]
 
+    # reshape to new data format
+    tasks_X_tr = np.reshape(tasks_X_tr, (num_tasks * train_size, num_feats))
+    tasks_y_tr = np.reshape(tasks_y_tr, (num_tasks * train_size, 1))
+
     models = [multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
               multitask.models_offgrid.MetaSingleOutputGPOffgrid()]
 
@@ -74,7 +82,7 @@ def remove_range_and_fit(tasks_X_values, tasks_y_values, train_size, output_dire
 
         for model_idx, model in enumerate(models):
             real_scores = tasks_y_te[idx].flatten()
-            mean_prediction = model.predict(tasks_X_te, region)
+            mean_prediction = model.predict(tasks_X_te[region])
             spearman = scipy.stats.pearsonr(mean_prediction, real_scores)[0]
             correlations[model.name].append(spearman)
             
@@ -84,8 +92,8 @@ def remove_range_and_fit(tasks_X_values, tasks_y_values, train_size, output_dire
             ax[model_idx].set_xlim(-1, 1)
             ax[model_idx].set_ylim(0, 1)
 
-            ax[model_idx].plot(tasks_X_tr[region, :, 0], tasks_y_tr[region], 'o')
-            ax[model_idx].plot(tasks_X_te[region, :, 0], tasks_y_te[region], 'o')
+            ax[model_idx].plot(tasks_X_values[region, tr_indices, 0], tasks_y_values[region, tr_indices], 'o')
+            ax[model_idx].plot(tasks_X_values[region, te_indices, 0], tasks_y_values[region, te_indices], 'o')
             ax[model_idx].legend_.remove()
 
         plt.tight_layout()

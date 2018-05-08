@@ -8,11 +8,11 @@ import sklearn.metrics
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
-    parser.add_argument('--output_directory', type=str, default='/home/janvanrijn/experiments/multitask/multi/')
+    parser = argparse.ArgumentParser(description='Runs a set of models on a holdout set across tasks')
+    parser.add_argument('--output_directory', type=str, default=os.path.expanduser('~') + '/experiments/multitask/multi/')
     parser.add_argument('--data_loader', type=str, default='OpenMLLibSVMDataLoader')
     parser.add_argument('--train_size', type=int, default=100)
-    parser.add_argument('--num_tasks', type=int, default=None)
+    parser.add_argument('--num_tasks', type=int, default=10)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
     parser.add_argument('--use_cache', action='store_true', default=True)
@@ -26,15 +26,18 @@ def benchmark(args, data_loader):
     num_tasks, num_obs, num_feats = tasks_X_values.shape
 
     # make train and test sets
-    train_indices = np.random.choice(num_obs, args.train_size, replace=False)
-    test_indices= np.array(list(set(range(num_obs)) - set(train_indices)))
+    tr_indices = np.random.choice(num_obs, args.train_size, replace=False)
+    te_indices = np.array(list(set(range(num_obs)) - set(tr_indices)))
 
-    task_X_train = tasks_X_values[:, train_indices, :]
-    task_X_test = tasks_X_values[:, test_indices, :]
-    task_y_train = tasks_y_values[:, train_indices]
-    task_y_test = tasks_y_values[:, test_indices]
+    tasks_X_te = tasks_X_values[:, te_indices, :]
+    tasks_X_tr = tasks_X_values[:, tr_indices, :]
+    tasks_X_tr = np.reshape(tasks_X_tr, (num_tasks * args.train_size, num_feats))
 
-    print('Train size: %d; test size: %d' % (len(train_indices), len(test_indices)))
+    tasks_y_te = tasks_y_values[:, te_indices]
+    tasks_y_tr = tasks_y_values[:, tr_indices]
+    tasks_y_tr = np.reshape(tasks_y_tr, (num_tasks * len(tr_indices), 1))
+
+    print('Train size: %d; test size: %d' % (len(tr_indices), len(te_indices)))
 
     models = [
         multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
@@ -55,11 +58,12 @@ def benchmark(args, data_loader):
             continue
         print(multitask.utils.get_time(), 'Generating %s ' %filename)
         results[model.name] = dict()
-        model.fit(task_X_train, task_y_train)
+        model.fit(tasks_X_tr, tasks_y_tr)
 
         for idx in range(num_tasks):
-            real_scores = task_y_test[idx].flatten()
-            mean_prediction = model.predict(task_X_test, idx)
+            real_scores = tasks_y_te[idx].flatten()
+
+            mean_prediction = model.predict(tasks_X_te[idx])
             if np.unique(mean_prediction).size == 1:
                 raise ValueError('Model %s had a constant prediction on task %d' % (model.name, idx))
 

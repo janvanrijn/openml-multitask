@@ -10,17 +10,25 @@ class MetaCoregionalizedRFOffgrid(object):
         self.name = 'CoregionalizedRF'
         self.model = None
 
-    def fit(self, task_X_train, task_y_train):
-        num_tasks, num_obs, num_feats = task_X_train.shape
+    def get_name(self, num_tasks, num_obs):
+        return '%s.%d.%d' % (self.name, num_tasks, num_obs)
 
-        X_train = np.reshape(task_X_train, (num_tasks * num_obs, num_feats))
-        y_train = np.reshape(task_y_train, (num_tasks * num_obs))
+    def fit(self, X_train, y_train):
+        """
+        Trains the model
+
+        :param task_X_train: a nd array with shape (n_obs, n_feats + 1),
+        where the last feature column indicates the task
+        :param task_y_train: a nd array of the shape (n_obs, 1)
+        """
+        num_obs, num_feats = X_train.shape
+        assert y_train.shape == (num_obs, 1)
 
         self.model = sklearn.pipeline.Pipeline(steps=[
             ('hotencoding', sklearn.preprocessing.OneHotEncoder(categorical_features=[num_feats-1])),  # last feature indicates task
             ('classifier', sklearn.ensemble.RandomForestRegressor(n_estimators=64))
         ])
-        self.model.fit(X_train, y_train)
+        self.model.fit(X_train, y_train.flatten())
 
-    def predict(self, task_X_test, idx):
-        return self.model.predict(task_X_test[idx])
+    def predict(self, task_X_test):
+        return self.model.predict(task_X_test)
