@@ -11,18 +11,19 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Runs a set of models on a holdout set across tasks')
     parser.add_argument('--output_directory', type=str, default=os.path.expanduser('~') + '/experiments/multitask/multi/')
     parser.add_argument('--data_loader', type=str, default='OpenMLLibSVMDataLoader')
-    parser.add_argument('--train_size', type=int, default=100)
-    parser.add_argument('--num_tasks', type=int, default=10)
+    parser.add_argument('--train_size', type=int, default=30)
+    parser.add_argument('--num_tasks', type=int, default=5)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--extension', type=str, default='png')
-    parser.add_argument('--use_cache', action='store_true', default=True)
+    parser.add_argument('--use_cache', action='store_true', default=False)
     return parser.parse_args()
 
 
 def benchmark(args, data_loader):
     np.random.seed(args.random_seed)
     #np.seterr(all='raise')
-    tasks_X_values, tasks_y_values = data_loader.load_data(num_tasks=args.num_tasks)
+    res = data_loader.load_data(num_tasks=args.num_tasks)
+    tasks_X_values, tasks_y_values, parameter_names, lower_bounds, upper_bounds = res
     num_tasks, num_obs, num_feats = tasks_X_values.shape
 
     # make train and test sets
@@ -38,8 +39,11 @@ def benchmark(args, data_loader):
     tasks_y_tr = np.reshape(tasks_y_tr, (num_tasks * len(tr_indices), 1))
 
     print('Train size: %d; test size: %d' % (len(tr_indices), len(te_indices)))
+    for idx, column in enumerate(parameter_names):
+        print('%s [%f -- %f]' % (column, lower_bounds[idx], upper_bounds[idx]) )
 
     models = [
+        multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
         multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
         multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),

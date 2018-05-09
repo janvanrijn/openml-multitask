@@ -53,13 +53,18 @@ class WistubaLibSVMDataLoader(object):
             raise ValueError('Could not find all hyperparameter columns, expected %d got %d' % (len(x_column_names),
                                                                                                 len(x_indices)))
 
-        return frame.as_matrix()[:, x_indices], frame.as_matrix()[:, y_indices]
+        return frame.as_matrix()[:, x_indices], frame.as_matrix()[:, y_indices], frame.columns[x_indices]
 
     @staticmethod
     def load_data(num_tasks=None, per_task_limit=None):
-        raw_X_data, raw_Y_data = WistubaLibSVMDataLoader.load_data_raw(num_tasks=num_tasks,
-                                                                       per_task_limit=per_task_limit)
-        return WistubaLibSVMDataLoader._stack_per_task_data(raw_X_data, raw_Y_data)
+        raw_X_data, raw_Y_data, parameter_names = WistubaLibSVMDataLoader.load_data_raw(num_tasks=num_tasks,
+                                                                                        per_task_limit=per_task_limit)
+
+        lower_bound = np.amin(raw_X_data, axis=0)
+        upper_bound = np.amax(raw_X_data, axis=0)
+
+        X_data, y_data = WistubaLibSVMDataLoader._stack_per_task_data(raw_X_data, raw_Y_data)
+        return X_data, y_data, parameter_names, lower_bound, upper_bound
 
     @staticmethod
     def load_data_rbf_fixed_complexity():
@@ -68,8 +73,8 @@ class WistubaLibSVMDataLoader(object):
             df = df.loc[(df['kernel_rbf'] == float(1)) & (df['c'] == float(0))]
             return df
 
-        raw_X_data, raw_Y_data = WistubaLibSVMDataLoader.load_data_raw(x_column_names=['gamma'],
-                                                                       filter_fn=filter_fn)
+        raw_X_data, raw_Y_data, column_names = WistubaLibSVMDataLoader.load_data_raw(x_column_names=['gamma'],
+                                                                                     filter_fn=filter_fn)
 
         assert raw_X_data.shape == (14, 1)   # manually checked, adapt if needed
         assert raw_Y_data.shape == (14, 50)  # manually checked, adapt if needed

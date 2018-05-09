@@ -55,6 +55,11 @@ class OpenMLLibSVMDataLoader(object):
         tasks_X_values = []
         tasks_y_values = []
 
+        # determine dataset wide bounds
+        lower_bounds = np.array(frame.min(axis=0))[0:-2]  # remove task idx
+        upper_bounds = np.array(frame.max(axis=0))[0:-2]  # remove task idx
+        parameter_names = np.array(all_columns)[0:-2]
+
         for idx in all_task_idx:
             if num_tasks is not None and idx >= num_tasks:
                 break
@@ -66,4 +71,6 @@ class OpenMLLibSVMDataLoader(object):
             tasks_y_values.append(y_vals)
             del current[y_column]
             tasks_X_values.append(current.as_matrix())
-        return np.array(tasks_X_values, dtype=float), np.array(tasks_y_values, dtype=float)
+        return np.array(tasks_X_values, dtype=float), \
+               np.array(tasks_y_values, dtype=float), \
+               parameter_names, lower_bounds, upper_bounds
