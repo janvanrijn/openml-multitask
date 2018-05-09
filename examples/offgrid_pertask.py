@@ -53,8 +53,8 @@ def run_on_task(args, task_idx):
     else:
         raise ValueError('Data loader does not exist:', args.data_loader)
 
-    tasks_X_values, tasks_y_values = data_loader.load_data(num_tasks=args.num_tasks,
-                                                           per_task_limit=args.train_size_other_tasks)
+    res = data_loader.load_data(num_tasks=args.num_tasks, per_task_limit=args.train_size_other_tasks)
+    tasks_X_values, tasks_y_values, parameter_names, lower_bounds, upper_bounds = res
     num_tasks, num_obs, num_feats = tasks_X_values.shape
 
     # make train and test sets
@@ -79,7 +79,8 @@ def run_on_task(args, task_idx):
         multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
         multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
-        multitask.models_offgrid.MetaSingleOutputGPOffgrid()
+        multitask.models_offgrid.MetaSingleOutputGPOffgrid(),
+        multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
     ]
 
     for model in models:

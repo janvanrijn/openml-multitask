@@ -63,6 +63,7 @@ def benchmark(args, data_loader):
         print(multitask.utils.get_time(), 'Generating %s ' %filename)
         results[model.name] = dict()
         model.fit(tasks_X_tr, tasks_y_tr)
+        print(multitask.utils.get_time(), 'Done fitting %s; measured %f seconds ' %(filename, model.train_time))
 
         for idx in range(num_tasks):
             real_scores = tasks_y_te[idx].flatten()

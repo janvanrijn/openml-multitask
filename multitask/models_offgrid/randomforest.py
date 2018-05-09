@@ -1,3 +1,4 @@
+import multitask.utils
 import numpy as np
 import sklearn.ensemble
 
@@ -11,6 +12,7 @@ class MetaRandomForestOffgrid(object):
     def get_name(self, num_tasks, num_obs):
         return self.name
 
+    @multitask.utils.fit_and_measure_time
     def fit(self, X_train, y_train):
         num_obs, num_feats = X_train.shape
         assert y_train.shape == (num_obs, 1)

@@ -1,4 +1,5 @@
 import GPy
+import multitask.utils
 import numpy as np
 
 
@@ -11,6 +12,7 @@ class MetaCoregionalizedGPOffgrid(object):
     def get_name(self, num_tasks, num_obs):
         return '%s.%d.%d' % (self.name, num_tasks, num_obs)
 
+    @multitask.utils.fit_and_measure_time
     def fit(self, X_train, y_train):
         """
         Trains the model
