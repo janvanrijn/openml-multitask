@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument('--train_size_current_task', type=int, default=10)
     parser.add_argument('--train_size_other_tasks', type=int, default=100)
     parser.add_argument('--num_tasks', type=int, default=25)
+    parser.add_argument('--task_idx', type=int, default=0)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--use_cache', action='store_true', default=True)
     return parser.parse_args()
@@ -111,8 +112,13 @@ def run_on_task(args, task_idx):
 
 
 def run(args):
-    for task_idx in range(args.num_tasks):
-        run_on_task(parse_args(), task_idx)
+    if args.task_idx is not None:
+        print(multitask.utils.get_time(), 'Running on %d' %args.task_idx)
+        run_on_task(parse_args(), args.task_idx)
+    else:
+        for task_idx in range(args.num_tasks):
+            print(multitask.utils.get_time(), 'Running on all tasks')
+            run_on_task(parse_args(), task_idx)
 
 
 if __name__ == '__main__':
