@@ -113,6 +113,8 @@ def run_on_task(args, task_idx):
 
 def run(args):
     if args.task_idx is not None:
+        if args.task_idx >= args.num_tasks:
+            raise ValueError('Task idx %d not existing. Requested %d tasks' % (args.task_idx, args.num_tasks))
         print(multitask.utils.get_time(), 'Running on %d' %args.task_idx)
         run_on_task(parse_args(), args.task_idx)
     else:
