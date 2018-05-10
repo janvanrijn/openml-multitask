@@ -1,16 +1,19 @@
 import arff
+import multitask
 import numpy as np
+import os
 import pandas as pd
 
 
 class OpenMLLibSVMDataLoader(object):
 
     name = 'OpenMLLibSVM'
+    data_file = os.path.join(os.path.dirname(multitask.__file__), '../data/svm-offgrid.arff')
 
     @staticmethod
-    def load_data(data_file='../data/svm-offgrid.arff', num_tasks=None, task_id_column='task_id',
-                  y_column='y', hyperparameters=None, log_columns=['C', 'gamma', 'tol'], per_task_limit=None):
-        with open(data_file, 'r') as fp:
+    def load_data(num_tasks=None, task_id_column='task_id', y_column='y', hyperparameters=None,
+                  log_columns=['C', 'gamma', 'tol'], per_task_limit=None):
+        with open(OpenMLLibSVMDataLoader.data_file, 'r') as fp:
             dataset = arff.load(fp)
         column_names = [att[0] for att in dataset['attributes']]
         # hyperparameter_columns_names = [att[0] for att in dataset['attributes']]

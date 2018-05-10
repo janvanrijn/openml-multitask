@@ -1,15 +1,18 @@
 import arff
+import multitask
 import numpy as np
+import os
 import pandas as pd
 
 
 class WistubaLibSVMDataLoader(object):
 
     name = 'WistubaLibSVM'
+    data_file = os.path.join(os.path.dirname(multitask.__file__), '../data/svm-ongrid.arff')
 
     @staticmethod
-    def _datafile_to_dataframe(data_file):
-        with open(data_file, 'r') as fp:
+    def _datafile_to_dataframe():
+        with open(WistubaLibSVMDataLoader.data_file, 'r') as fp:
             arff_dataset = arff.load(fp)
         frame = pd.DataFrame(data=arff_dataset['data'],
                              columns=[name for name, datatype in arff_dataset['attributes']],
@@ -33,10 +36,10 @@ class WistubaLibSVMDataLoader(object):
         return np.array(tasks_X_data, dtype=float), np.array(tasks_y_data, dtype=float)
 
     @staticmethod
-    def load_data_raw(data_file='../data/svm-ongrid.arff', num_tasks=None, y_prefix='y-on-',
+    def load_data_raw(num_tasks=None, y_prefix='y-on-',
                       x_column_names=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree'],
                       per_task_limit=None, filter_fn=None):
-        frame = WistubaLibSVMDataLoader._datafile_to_dataframe(data_file)
+        frame = WistubaLibSVMDataLoader._datafile_to_dataframe()
         if filter_fn is not None:
             frame = filter_fn(frame)
         if per_task_limit is not None:
