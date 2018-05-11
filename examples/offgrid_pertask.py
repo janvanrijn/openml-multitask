@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument('--data_loader', type=str, default='WistubaLibSVMDataLoader')
     parser.add_argument('--train_size_current_task', type=int, default=10)
     parser.add_argument('--train_size_other_tasks', type=int, default=100)
-    parser.add_argument('--num_tasks', type=int, default=25)
+    parser.add_argument('--num_tasks', type=int, default=5)
     parser.add_argument('--task_idx', type=int, default=0)
     parser.add_argument('--random_seed', type=int, default=42)
     parser.add_argument('--use_cache', action='store_true', default=True)
@@ -31,20 +31,21 @@ def run_model_on_task(args, data_loader, model, task_idx, X_tr, y_tr, X_te):
                                    str(task_idx),
                                    str(args.random_seed))
     os.makedirs(cache_directory, exist_ok=True)
-    output_file = os.path.join(cache_directory, 'model.pkl')
-    if not os.path.isfile(output_file) or not args.use_cache:
-        print(multitask.utils.get_time(), 'Started training %s ' % model_fullname)
-        model.fit(X_tr, y_tr)
-        with open(output_file, 'wb') as fp:
-            pickle.dump(model, fp)
-        print(multitask.utils.get_time(), 'Finished training %s ' % model_fullname)
-    else:
-        print(multitask.utils.get_time(), 'Loaded %s from cache' % model_fullname)
+    results_file = os.path.join(cache_directory, 'results.pkl')
+    if os.path.isfile(results_file) or not args.use_cache:
+        print(multitask.utils.get_time(), 'Loaded from cache %s ' % model_fullname)
+        with open(results_file, 'rb') as fp:
+            return pickle.load(fp)
 
-    with open(output_file, 'rb') as fp:
-        current_model = pickle.load(fp)
+    print(multitask.utils.get_time(), 'Started training %s ' % model_fullname)
+    model.fit(X_tr, y_tr)
+    print(multitask.utils.get_time(), 'Finished training %s ' % model_fullname)
 
-    return current_model.predict(X_te)
+    result = (model.predict(X_te), model.train_time)
+    with open(results_file, 'wb') as fp:
+        pickle.dump(result, fp)
+
+    return result
 
 
 def run_on_task(args, task_idx):
@@ -81,7 +82,7 @@ def run_on_task(args, task_idx):
         multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
         multitask.models_offgrid.MetaSingleOutputGPOffgrid(),
-        multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
+        # multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
     ]
 
     for model in models:
@@ -101,10 +102,10 @@ def run_on_task(args, task_idx):
         else:
             print(multitask.utils.get_time(), 'Generating results')
             real_scores = y_te.flatten()
-            predictions = run_model_on_task(args, data_loader, model, task_idx, X_tr, y_tr, X_te)
+            predictions, train_time = run_model_on_task(args, data_loader, model, task_idx, X_tr, y_tr, X_te)
             spearman = scipy.stats.spearmanr(real_scores, predictions)[0]
             mse = sklearn.metrics.mean_squared_error(real_scores, predictions)
-            results = {'spearman': spearman, 'mse': mse}
+            results = {'spearman': spearman, 'mse': mse, 'train_time': train_time}
             with open(results_file, 'wb') as fp:
                 pickle.dump(results, fp)
 
