@@ -82,7 +82,7 @@ def run_on_task(args, task_idx):
         multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
         multitask.models_offgrid.MetaSingleOutputGPOffgrid(),
-        # multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
+        multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
     ]
 
     for model in models:
