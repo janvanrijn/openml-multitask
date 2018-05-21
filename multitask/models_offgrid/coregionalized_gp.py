@@ -1,6 +1,8 @@
 import GPy
 import multitask.utils
 import numpy as np
+import os
+import pickle
 
 
 class MetaCoregionalizedGPOffgrid(object):
@@ -8,6 +10,7 @@ class MetaCoregionalizedGPOffgrid(object):
     def __init__(self):
         self.name = 'CoregionalizedGP'
         self.model = None
+        self.train_time = None
 
     def get_name(self, num_tasks, num_obs):
         return '%s.%d.%d' % (self.name, num_tasks, num_obs)
@@ -46,3 +49,20 @@ class MetaCoregionalizedGPOffgrid(object):
 
     def plot(self, idx, axes):
         self.model.plot(ax=axes, fixed_inputs=[(1, idx)], plot_data=False)
+
+    # def serialize(self, folder):
+    #     os.makedirs(folder, exist_ok=True)
+    #     if self.model is None:
+    #         raise ValueError('Model not fitted yet.')
+    #     self.model.save_model(os.path.join(folder, 'model.gpy'), compress=True, save_data=False)
+    #     with open(os.path.join(folder, 'meta.pkl'), 'wb') as fp:
+    #         pickle.dump({'train_time': self.train_time}, fp)
+    #
+    # @classmethod
+    # def deserialize(cls, folder):
+    #     with open(os.path.join(folder, 'meta.pkl'), 'rb') as fp:
+    #         meta = pickle.load(fp)
+    #
+    #     inst = cls()
+    #     inst.train_time = meta.train_time
+    #     inst.model = GPy.models.GPRegression.load_model(os.path.join(folder, 'model.gpy'))
