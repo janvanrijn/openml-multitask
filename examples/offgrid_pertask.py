@@ -78,10 +78,11 @@ def run_on_task(args, task_idx):
     y_te = tasks_y_values[task_idx, te_self_indices]
 
     models = [
-        multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
+        multitask.models_offgrid.MetaStackingGPOffgrid(),
         multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
         multitask.models_offgrid.MetaSingleOutputGPOffgrid(),
+        multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
         multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(lower_bounds, upper_bounds),
     ]
 

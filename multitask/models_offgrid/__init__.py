@@ -3,3 +3,4 @@ from .coregionalized_rf import MetaCoregionalizedRFOffgrid
 from .multioutput_gp_george import MetaMultitaskGPGeorgeOffgrid
 from .randomforest import MetaRandomForestOffgrid
 from .singleoutput_gp import MetaSingleOutputGPOffgrid
+from .stacking_gp import MetaStackingGPOffgrid
