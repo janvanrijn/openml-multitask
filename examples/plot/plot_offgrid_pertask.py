@@ -28,11 +28,12 @@ if __name__ == '__main__':
         raise ValueError('Data loader does not exist:', args.data_loader)
 
     models = [
+        multitask.models_offgrid.MetaStackingGPOffgrid(),
         multitask.models_offgrid.MetaCoregionalizedGPOffgrid(),
         multitask.models_offgrid.MetaCoregionalizedRFOffgrid(),
         multitask.models_offgrid.MetaRandomForestOffgrid(),
         multitask.models_offgrid.MetaSingleOutputGPOffgrid(),
-        multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(),
+        # multitask.models_offgrid.MetaMultitaskGPGeorgeOffgrid(None, None),
     ]
 
     results_directory = os.path.join(args.results_directory,
@@ -55,11 +56,10 @@ if __name__ == '__main__':
     for model in model_task_results.keys():
         print('%s num results: %d' % (model, len(model_task_results[model])))
 
-    for measure in ['spearman', 'mse', 'train_time']:
-        output_file = os.path.join(args.output_directory,
-                                   'offgrid_pertask.%s.%d.%d.%s.%s' % (data_loader.name,
-                                                                       args.train_size_current_task,
-                                                                       args.train_size_other_tasks,
-                                                                       measure,
-                                                                       args.extension))
-        multitask.plot.plot_boxplots(model_task_results, measure, measure, output_file)
+    measures = ['spearman', 'mse', 'train_time']
+    output_file = os.path.join(args.output_directory,
+                               'offgrid_pertask.%s.%d.%d.%s' % (data_loader.name,
+                                                                args.train_size_current_task,
+                                                                args.train_size_other_tasks,
+                                                                args.extension))
+    multitask.plot.plot_boxplots(model_task_results, measures, output_file)

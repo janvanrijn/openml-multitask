@@ -1,23 +1,25 @@
 import matplotlib.pyplot as plt
 
 
-def plot_boxplots(results_dict, measure, title, output_file):
-    fig, ax = plt.subplots(1, 1)
+def plot_boxplots(results_dict, measures, output_file):
+    fig, ax = plt.subplots(len(measures), 1, figsize=(8,6*len(measures)))
 
-    labels = []
-    series = []
-    for model in results_dict:
-        current_series = list()
-        for task in results_dict[model]:
-            current_series.append(results_dict[model][task][measure])
+    for idx, measure in enumerate(measures):
+        labels = []
+        series = []
 
-        labels.append(model)
-        series.append(current_series)
+        for model in results_dict:
+            current_series = list()
+            for task in results_dict[model]:
+                current_series.append(results_dict[model][task][measure])
 
-    # basic plot
-    ax.boxplot(series)
-    ax.set_xticklabels(labels, rotation=45, ha='right')
-    ax.set_title(title)
+            labels.append(model)
+            series.append(current_series)
+
+        # basic plot
+        ax[idx].boxplot(series)
+        ax[idx].set_xticklabels(labels, rotation=45, ha='right')
+        ax[idx].set_title(measure)
 
     plt.tight_layout()
     plt.savefig(output_file)
