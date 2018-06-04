@@ -1,4 +1,5 @@
 Cython==0.25.2
+GPy
 liac-arff==2.1.1
 matplotlib==2.0.2
 numpy==1.13.3
