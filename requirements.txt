@@ -1,10 +1,11 @@
-Cython==0.25.2
+Cython
 GPy
-liac-arff==2.1.1
-matplotlib==2.0.2
-numpy==1.13.3
+liac-arff
+matplotlib
+numpy
 openml
 pandas
 git+https://github.com/automl/RoBO.git
-scikit-learn==0.18.1
-scipy==0.19.1
+scikit-learn
+scipy
+
