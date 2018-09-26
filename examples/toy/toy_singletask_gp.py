@@ -10,10 +10,10 @@ import scipy.stats
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Proof of concept of Multi-task GP')
-    parser.add_argument('--data_file', type=str, default='../data/svm-gamma-10tasks.arff')
+    parser.add_argument('--data_file', type=str, default='../../data/svm-gamma-10tasks.arff')
     parser.add_argument('--x_column', type=str, default='gamma-log')
     parser.add_argument('--max_tasks', type=int, default=None)
-    parser.add_argument('--plot_directory', type=str, default='C:/experiments/multitask/single/')
+    parser.add_argument('--plot_directory', type=str, default=os.path.expanduser("~") + '/experiments/multitask/single/')
     parser.add_argument('--default_value_theta0', type=float, default=1.0)
     parser.add_argument('--default_value_theta1', type=float, default=1.0)
     parser.add_argument('--optimization_method', type=str, default='Nelder-Mead')
@@ -41,8 +41,9 @@ def plot(x_train, y_train, x, Theta_x, plot_directory, target_name, param_name, 
 
     ax.set_xlim([x[0], x[-1]])
     ax.set_ylim([0., 1.])
+    os.makedirs(plot_directory, exist_ok=True)
     output_file = os.path.join(plot_directory, target_name + '.png')
-    fig.savefig(fname=output_file)
+    fig.savefig(filename=output_file)
 
 
 def neg_log_likelihood(Theta_x, x_train, y_train):
