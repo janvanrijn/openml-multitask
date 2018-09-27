@@ -24,8 +24,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def warp_input(x, alpha, beta):
-    return scipy.stats.beta.pdf(x, alpha, beta, 0, 2**15)
+def warp_input(x, alpha, beta, range_min, range_max):
+    x = scipy.stats.beta.pdf(x, alpha, beta, range_min, range_max)
+    assert range_min <= min(x)
+    assert max(x) >= range_max
+    return x
 
 
 def plot(x_train, y_train, x, params, plot_directory, target_name, param_name, num_samples=3):
@@ -55,20 +58,21 @@ def plot(x_train, y_train, x, params, plot_directory, target_name, param_name, n
     fig.savefig(filename=output_file)
 
 
-def neg_log_likelihood(params, x_train, y_train):
+def neg_log_likelihood(params, x_train, y_train, range_min, range_max):
     theta_0 = params[0]
     theta_1 = params[1]
     alpha = params[2]
     beta = params[3]
-    x_train = warp_input(x_train, alpha, beta)
+    x_train = warp_input(x_train, alpha, beta, range_min, range_max)
     _, _, lml = multitask.utils.get_posterior(x_train, x_train, y_train, theta_0, theta_1)
     return -1 * lml
 
 
 def optimize_params(x, y, default_value_theta0, default_value_theta1,
                     default_value_alpha, default_value_beta,
+                    range_min, range_max,
                     optimization_method, maxiter):
-    optimizee = functools.partial(neg_log_likelihood, x_train=x, y_train=y)
+    optimizee = functools.partial(neg_log_likelihood, x_train=x, y_train=y, range_min=range_min, range_max=range_max)
     options = dict()
     if maxiter:
         options['maxiter'] = maxiter
@@ -98,17 +102,22 @@ def run(args):
     x = data[:,x_idx]
     x_star = np.linspace(min(x) - plot_offset, max(x) + plot_offset, 500)
 
+    range_min = min(x_star)
+    range_max = max(x_star)
+
     for y_idx in y_indices:
         current_target = dataset['attributes'][y_idx][0]
         y = data[:, y_idx]
 
         params = optimize_params(x, y,
-                                 args.default_value_theta0,
-                                 args.default_value_theta1,
-                                 args.default_value_alpha,
-                                 args.default_value_beta,
-                                 args.optimization_method,
-                                 args.maxiter)
+                                 default_value_theta0=args.default_value_theta0,
+                                 default_value_theta1=args.default_value_theta1,
+                                 default_value_alpha=args.default_value_alpha,
+                                 default_value_beta=args.default_value_beta,
+                                 range_min=range_min,
+                                 range_max=range_max,
+                                 optimization_method=args.optimization_method,
+                                 maxiter=args.maxiter)
         print(current_target, params)
         # theta_0, theta_1, alpha, beta = params
 
