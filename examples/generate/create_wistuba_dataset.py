@@ -1,17 +1,22 @@
-import arff
 import argparse
-import collections
 import csv
+import logging
 import numpy as np
 import os
+import pandas as pd
 
 
+# use either of following github repo:
+# - https://github.com/wistuba/TST/
+# - https://github.com/janvanrijn/TST (fork)
 def parse_args():
     parser = argparse.ArgumentParser(description='Generate data for openml-pimp project')
-    parser.add_argument('--input_directory', type=str, default='/home/janvanrijn/projects/TST/data/svm')
-    parser.add_argument('--output_file', type=str, default='../data/svm-ongrid.arff')
-    parser.add_argument('--xval_column_names', type=int, nargs='+',
+    parser.add_argument('--input_directory', type=str, default=os.path.expanduser('~/projects/TST/data/svm'))
+    parser.add_argument('--output_file_dir', type=str, default=os.path.expanduser('~/experiments/openml-multitask'))
+    parser.add_argument('--output_file_name', type=str, default='svm-ongrid')
+    parser.add_argument('--xval_column_names', type=str, nargs='+',
                         default=['kernel_rbf', 'kernel_poly', 'kernel_linear', 'c', 'gamma', 'degree'])
+    parser.add_argument('--xval_column_prefix', type=str, default='perf-on-')
     parser.add_argument('--xval_column_idx', type=int, nargs='+', default=[1, 2, 3, 4, 5, 6])
     parser.add_argument('--yval_column_idx', type=int, default=0)
 
@@ -19,13 +24,20 @@ def parse_args():
 
 
 def run(args):
+    logging.basicConfig(level=logging.INFO, format='[%(asctime)s] [%(levelname)s] %(message)s')
     if len(args.xval_column_idx) != len(args.xval_column_names):
         raise ValueError()
 
-    # first enumerate over all datasets and fill config_dataset_result dict
-    config_dataset_result = collections.defaultdict(dict)
-    for file in os.listdir(args.input_directory):
+    # all datasets that we can expect
+    dataset_files = os.listdir(args.input_directory)
+
+    df = pd.DataFrame(columns=args.xval_column_names + ['%s%s' % (args.xval_column_prefix, dataset)
+                                                                  for dataset in dataset_files])
+    df = df.set_index(args.xval_column_names)
+
+    for f_idx, file in enumerate(dataset_files):
         dataset_file = os.path.join(args.input_directory, file)
+        column = '%s%s' % (args.xval_column_prefix, file)
         with open(dataset_file, 'r') as fp:
             csvreader = csv.reader(fp, delimiter=' ')
             for row in csvreader:
@@ -33,46 +45,20 @@ def run(args):
                 current_y = float(row[args.yval_column_idx])
                 for idx in args.xval_column_idx:
                     current_X.append(float(row[idx]))
-                current_X = tuple(current_X)
-                config_dataset_result[current_X][file] = current_y
+                num_nans = sum(np.isnan(np.array(current_X)))
+                if num_nans > 0:
+                    raise ValueError()
+                if f_idx == 0:
+                    df.loc[tuple(current_X)] = np.nan
+                df.loc[tuple(current_X)][column] = current_y
 
-    # assert that the grid is full
-    distinct_tasks = set(os.listdir(args.input_directory))
-    for config, dataset_result in config_dataset_result.items():
-        if set(dataset_result.keys()) != distinct_tasks:
-            raise ValueError('task set not ok for conig %s' %config)
+    if df.isnull().sum().sum() > 0:
+        raise ValueError()
 
-    # create the arff
-    attributes = []
-    data = []
-
-    # create arff attributes
-    for idx, _ in enumerate(args.xval_column_idx):
-        attribute = (args.xval_column_names[idx], 'NUMERIC')
-        attributes.append(attribute)
-    for filename in os.listdir(args.input_directory):
-        attribute = ('y-on-' + filename, 'NUMERIC')
-        attributes.append(attribute)
-
-    # create arff data
-    for config, dataset_result in config_dataset_result.items():
-        current = list(config)
-        for filename in os.listdir(args.input_directory):
-            current.append(dataset_result[filename])
-        data.append(np.array(current, dtype=float))
-    data = np.array(data, dtype=float)
-
-    num_configs = len(config_dataset_result)
-    expected_shape = (num_configs, len(attributes))
-    if data.shape != expected_shape:
-        raise ValueError('data dimensions wrong. Expected %s; Got %s' %(expected_shape, data.shape))
-
-    # create the arff object
-    relation = 'ongrid-svm'
-    description = 'Data obtained from Wistuba et. al; https://github.com/wistuba/TST'
-    dataset = {'relation': relation, 'attributes': attributes, 'data': data, 'description': description}
-    with open(args.output_file, 'w') as fp:
-        fp.write(arff.dumps(dataset))
+    os.makedirs(args.output_file_dir, exist_ok=True)
+    output_file = os.path.join(args.output_file_dir, '%s.csv' % args.output_file_name)
+    df.to_csv(output_file)
+    logging.info('saved to %s' % output_file)
 
 
 if __name__ == '__main__':
